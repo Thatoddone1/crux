@@ -8,6 +8,10 @@
 import SwiftUI
 
 struct SettingsView: View {
+    
+    
+    
+    
     @Environment(MatrixService.self) var matrix
     
     
@@ -22,6 +26,29 @@ struct SettingsView: View {
                 Section("About") {
                     Link("Reach out for support", destination: URL(string: "mailto:hello@joshuarocks.me")!)
                     Text("Created by [Joshua K](https://joshuarocks.me) with ❤️")
+                }
+                Section("Legal") {
+                    NavigationLink("Matrix Rust SDK License") {
+                        ScrollView {
+                            Text(matrixRustSDKLicense)
+                                .padding()
+                        }
+                        .navigationTitle("Matrix Rust SDK License")
+                    }
+                    NavigationLink("Crux License") {
+                        ScrollView{
+                            Text(cruxLicense)
+                                .padding()
+                        }
+                        .navigationTitle("Crux License")
+                    }
+                    NavigationLink("Crux License Exceptions") {
+                        ScrollView {
+                            Text(cruxLicenseException)
+                                .padding()
+                        }
+                        .navigationTitle("Crux License Exceptions")
+                    }
                 }
             }
             .navigationTitle("Settings")
