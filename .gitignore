@@ -87,3 +87,4 @@ ai_instructions.md
 # Other miscellaneous
 
 .env
+Secrets.xcconfig
