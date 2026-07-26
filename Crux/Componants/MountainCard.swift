@@ -32,7 +32,7 @@ struct MountainCard: View {
         .padding()
     }
 }
-
+#if DEBUG
 #Preview {
     MountainCard(
         messages: [
@@ -43,3 +43,4 @@ struct MountainCard: View {
         onSend: { draft in print("sent: \(draft)") }
     )
 }
+#endif

@@ -54,6 +54,7 @@ struct MessageBubble: View {
     }
 }
 
+#if DEBUG
 //some sample messages
 #Preview(traits: .sizeThatFitsLayout) {
     VStack(spacing: 12) {
@@ -73,3 +74,4 @@ struct MessageBubble: View {
     }
     .padding()
 }
+#endif DEBUG
