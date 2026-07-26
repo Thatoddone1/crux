@@ -9,7 +9,11 @@ import SwiftUI
 
 struct SpaceListView: View {
     var body: some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+        ContentUnavailableView{
+            Label("Coming Soon", systemImage: "questionmark")
+        } description: {
+            Text("Browsing spaces should be avaliable soon. For now, you can see all rooms, including those in spaces, within the room list")
+        }
     }
 }
 
