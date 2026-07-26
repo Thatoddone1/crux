@@ -74,4 +74,4 @@ struct MessageBubble: View {
     }
     .padding()
 }
-#endif DEBUG
+#endif
