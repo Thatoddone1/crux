@@ -23,6 +23,9 @@ final class RoomListModel {
         let isFavourite: Bool
         let isLowPriority: Bool
 
+        ///MXC for room's avatar/picture
+        let avatarUrl: String?
+
         let room: Room
 
         /// if there is at least one unread message in the entire room list
@@ -97,6 +100,7 @@ final class RoomListModel {
                            isDirect: info?.isDirect ?? false,
                            isFavourite: info?.isFavourite ?? false,
                            isLowPriority: info?.isLowPriority ?? false,
+                           avatarUrl: room.avatarUrl() ?? info?.heroes.first?.avatarUrl,
                            room: room)
         }
     }

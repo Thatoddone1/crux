@@ -25,6 +25,9 @@ final class TimelineModel {
     struct Message: Identifiable {
         let id: String
         let sender: String
+        /// mxc:// URL for the sender's avatar (as seen in this room), or nil if unknown.
+        /// Resolve to an image with `MediaLoader`.
+        let senderAvatarUrl: String?
         let body: String
         let date: Date
         let isOwn: Bool
@@ -181,6 +184,7 @@ final class TimelineModel {
 
         return Message(id: item.uniqueId().id,
                        sender: Self.displayName(of: event),
+                       senderAvatarUrl: Self.avatarUrl(of: event),
                        body: body,
                        date: Self.date(from: event.timestamp),
                        isOwn: event.isOwn,
@@ -223,6 +227,13 @@ final class TimelineModel {
         return event.sender
     }
 
+    private static func avatarUrl(of event: EventTimelineItem) -> String? {
+        if case .ready(_, _, let avatarUrl) = event.senderProfile {
+            return avatarUrl
+        }
+        return nil
+    }
+
     private static func date(from timestamp: UInt64) -> Date {
         Date(timeIntervalSince1970: Double(timestamp) / 1000)
     }
@@ -233,12 +244,13 @@ extension TimelineModel.Message {
     //for demo messages
     static func sample(id: String = UUID().uuidString,
                        sender: String,
+                       senderAvatarUrl: String? = nil,
                        body: String,
                        isOwn: Bool = false,
                        isEdited: Bool = false,
                        sendState: TimelineModel.SendState = .sent,
                        reactions: [TimelineModel.Reaction] = []) -> Self {
-        .init(id: id, sender: sender, body: body, date: Date(),
+        .init(id: id, sender: sender, senderAvatarUrl: senderAvatarUrl, body: body, date: Date(),
               isOwn: isOwn, isEdited: isEdited, sendState: sendState,
               reactions: reactions, isEditable: isOwn, canReply: true,
               itemID: .eventId(eventId: id))

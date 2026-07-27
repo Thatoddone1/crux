@@ -14,6 +14,11 @@ final class UserSession {
     let roomList: RoomListModel
     let verification: VerificationModel
 
+    /// The signed-in user's own display name, for menus etc.
+    private(set) var displayName: String?
+    /// MXC for the signed-in user's own avatar. 
+    private(set) var avatarUrl: String?
+
     private let syncService: SyncService
 
     init(client: Client) async throws {
@@ -29,6 +34,11 @@ final class UserSession {
         await syncService.start()
         await roomList.start()
         await verification.start()
+
+        if let profile = try? await client.getProfile(userId: userId) {
+            displayName = profile.displayName
+            avatarUrl = profile.avatarUrl
+        }
     }
 
     func stop() async {
