@@ -29,7 +29,7 @@ struct SettingsButton: View {
                 }
             }
             .task {
-                if let url = try? await session.client.avatarUrl() {
+                if let url = session.avatarUrl{
                    profilePicture = await MediaLoader.shared.avatar(for: url, client: session.client)
                 }
             }
