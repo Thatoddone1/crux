@@ -22,6 +22,9 @@ struct SettingsView: View {
                     Button("Log out", role: .destructive) {
                         Task { await matrix.logOut() }
                     }
+                    NavigationLink("Verification") {
+                        VerificationView()
+                    }
                 }
                 Section("About") {
                     Link("Reach out for support", destination: URL(string: "mailto:hello@joshuarocks.me")!)
