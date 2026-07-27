@@ -176,7 +176,7 @@ final class MatrixService {
         try? await session.client.logout()
         clearStoredSession()
     }
-
+    
     // MARK: - Private
 
     private func finishLogin(with client: Client) async throws {
@@ -196,8 +196,8 @@ final class MatrixService {
         // Sign out if the homeserver revokes the session (tokens expired
         // beyond refresh, device deleted, …). Without this the app would
         // stay signed in with a dead session and every request would 401.
-        clientDelegateHandle = try? client.setDelegate(delegate: AuthErrorBridge { [weak self] in
-            Task { @MainActor in await self?.handleAuthError() }
+        clientDelegateHandle = try? client.setDelegate(delegate: AuthErrorBridge {
+            Task { @MainActor [weak self] in await self?.handleAuthError() }
         })
 
         await session.start()

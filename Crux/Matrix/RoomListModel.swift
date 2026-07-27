@@ -56,8 +56,8 @@ final class RoomListModel {
         guard entriesHandle == nil, let allRooms = try? await service.allRooms() else { return }
         roomList = allRooms
 
-        let listener = RoomListEntriesBridge { [weak self] updates in
-            Task { @MainActor in self?.apply(updates) }
+        let listener = RoomListEntriesBridge { updates in
+            Task { @MainActor [weak self] in self?.apply(updates) }
         }
         let result = allRooms.entriesWithDynamicAdapters(pageSize: 100, listener: listener)
         controller = result.controller()
@@ -114,8 +114,8 @@ final class RoomListModel {
 
         for room in rooms where infoHandles[room.id()] == nil {
             let id = room.id()
-            let listener = RoomInfoBridge { [weak self] info in
-                Task { @MainActor in
+            let listener = RoomInfoBridge { info in
+                Task { @MainActor [weak self] in
                     self?.roomInfo[id] = info
                     self?.rebuildSummaries()
                 }

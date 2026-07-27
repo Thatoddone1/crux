@@ -84,8 +84,8 @@ final class TimelineModel {
         let timeline = try await room.timeline()
         self.timeline = timeline
 
-        let listener = TimelineBridge { [weak self] diffs in
-            Task { @MainActor in self?.apply(diffs) }
+        let listener = TimelineBridge { diffs in
+            Task { @MainActor [weak self] in self?.apply(diffs) }
         }
         listenerHandle = await timeline.addListener(listener: listener)
         _ = try await timeline.paginateBackwards(numEvents: 30)
