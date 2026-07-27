@@ -6,27 +6,36 @@
 //
 
 import SwiftUI
+import MatrixRustSDK
 
 struct SettingsButton: View {
-    
+    @Environment(UserSession.self) var session
+    @State var profilePicture: UIImage? = nil
     @State var settingsIsPresented = false
     
     var body: some View {
             Button() {
                 settingsIsPresented = true
             } label: {
-                Image(systemName: "house")
+                if let picture = profilePicture {
+                    Image(uiImage: picture)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 30, height: 30)
+                        .clipShape(.circle)
+                } else {
+                    Image(systemName: "gear")
+                        .padding()
+                }
             }
-            .buttonStyle(.glass)
+            .task {
+                if let url = try? await session.client.avatarUrl() {
+                   profilePicture = await MediaLoader.shared.avatar(for: url, client: session.client)
+                }
+            }
             .padding()
             .popover(isPresented: $settingsIsPresented) {
                 SettingsView()
             }
     }
 }
-
-#Preview(traits: .sizeThatFitsLayout) {
-    SettingsButton()
-}
-
-//I can't load the entire matrix backend in the preview, so don't enter settings view by clicking it :(
