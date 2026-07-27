@@ -17,10 +17,18 @@ struct MountainView: View {
             ContentUnavailableView("All caught up",
                                    systemImage: "checkmark.circle",
                                    description: Text("Unread rooms stack up here."))
+            .overlay(
+                SettingsButton(),
+                alignment: .topTrailing
+            )
         } else {
             CardDeck(items: pile) { summary in
                 MountainCardListView(summary: summary)
             }
+            .overlay(
+                SettingsButton(),
+                alignment: .topTrailing
+            )
         }
     }
 }

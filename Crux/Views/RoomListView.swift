@@ -27,7 +27,7 @@ struct RoomListView: View {
                 }
             }
         .overlay(
-            ProfileButton(),
+            SettingsButton(),
             alignment: .topTrailing
         )
 
