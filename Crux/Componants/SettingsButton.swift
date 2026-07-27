@@ -1,5 +1,5 @@
 //
-//  ProfileButton.swift
+//  SettingsButton.swift
 //  Crux
 //
 //  Created by Joshua Kellman on 7/21/26.
@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct ProfileButton: View {
+struct SettingsButton: View {
     
     @State var settingsIsPresented = false
     
@@ -26,7 +26,7 @@ struct ProfileButton: View {
 }
 
 #Preview(traits: .sizeThatFitsLayout) {
-    ProfileButton()
+    SettingsButton()
 }
 
 //I can't load the entire matrix backend in the preview, so don't enter settings view by clicking it :(
