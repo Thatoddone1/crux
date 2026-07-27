@@ -6,6 +6,8 @@
 //
 
 import SwiftUI
+import StoreKit
+
 
 struct SettingsView: View {
     
@@ -13,7 +15,43 @@ struct SettingsView: View {
     
     
     @Environment(MatrixService.self) var matrix
+    var version: String {
+        return Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown"
+    }
+        
+    var buildNumber: String {
+        return Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "Unknown"
+    }
+        
+ 
+    func fetchEnvironment() async -> String {
+            #if DEBUG
+            return "Local / Debug"
+            #else
+            do {
+                // Fetch the signed app transaction from StoreKit
+                let result = try await AppTransaction.shared
+                
+                switch result {
+                case .verified(let appTransaction):
+                    // Check the environment property on the verified transaction
+                    if appTransaction.environment == .sandbox {
+                        return "TestFlight / Beta"
+                    } else {
+                        return "App Store / Production"
+                    }
+                case .unverified(_, _):
+                    // The transaction failed validation (common in simulated or altered environments)
+                    return "Unverified Environment"
+                }
+            } catch {
+                // Fallback if the network or StoreKit request fails
+                return "Production (Fallback)"
+            }
+            #endif
+        }
     
+    @State var environment: String = "Loading...."
     
     var body: some View {
         NavigationStack {
@@ -27,6 +65,8 @@ struct SettingsView: View {
                     }
                 }
                 Section("About") {
+                    Text("Version: \(version) (\(buildNumber))")
+                    Text("Environment: \(environment)")
                     Link("Reach out for support", destination: URL(string: "mailto:hello@joshuarocks.me")!)
                     Text("Created by [Joshua K](https://joshuarocks.me) with ❤️")
                 }
@@ -55,6 +95,9 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            .task {
+                environment = await fetchEnvironment()
+            }
         }
 
     }
