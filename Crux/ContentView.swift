@@ -27,9 +27,9 @@ struct ContentView: View {
                     Tab("Spaces", systemImage: "person.3.fill") {
                         SpaceListView()
                     }
-                    Tab(role: .search) {
-                        SearchView()
-                    }
+                    //Tab(role: .search) {
+                        //SearchView()
+                    //}
                 }
                 .environment(session)
             }
