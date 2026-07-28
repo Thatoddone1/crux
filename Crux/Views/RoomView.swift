@@ -4,42 +4,55 @@
 //
 
 import SwiftUI
+import MatrixRustSDK
 
 struct RoomView: View {
-    private let name: String
-    @State private var model: TimelineModel
+    let roomId: String
+    @Environment(UserSession.self) private var session
+
+    @State private var name: String?
+    @State private var model: TimelineModel?
     @State private var errorMessage: String?
 
-    init(summary: RoomListModel.Summary) {
-        name = summary.name
-        _model = State(initialValue: TimelineModel(room: summary.room))
-    }
-
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 8) {
-                ForEach(model.entries) { entry in
-                    switch entry {
-                    case .message(let message):
-                        MessageBubble(message: message)
-                    case .dayDivider(_, let date):
-                        Text(date, style: .date)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+        Group {
+            if let model {
+                ScrollView {
+                    LazyVStack(spacing: 8) {
+                        ForEach(model.entries) { entry in
+                            switch entry {
+                            case .message(let message):
+                                MessageBubble(message: message)
+                            case .dayDivider(_, let date):
+                                Text(date, style: .date)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                     }
+                    .padding(.horizontal)
                 }
+                .defaultScrollAnchor(.bottom)
+                .safeAreaInset(edge: .bottom) { Composer(
+                    onSend: send,
+                    errorMessage: errorMessage
+                ) }
+            } else if let errorMessage {
+                ContentUnavailableView("Couldn't Open Room",
+                                       systemImage: "exclamationmark.triangle",
+                                       description: Text(errorMessage))
+            } else {
+                ProgressView()
             }
-            .padding(.horizontal)
         }
-        .defaultScrollAnchor(.bottom)
-        .safeAreaInset(edge: .bottom) { Composer(
-            onSend: send,
-            errorMessage: errorMessage
-        ) }
-        .navigationTitle(name)
+        .navigationTitle(name ?? "")
         .navigationBarTitleDisplayMode(.inline)
         .task {
             do {
+                let room = try session.room(id: roomId)
+                name = room.displayName() ?? room.id()
+                let model = TimelineModel(room: room)
+                self.model = model
                 try await model.start()
             } catch {
                 errorMessage = error.localizedDescription
@@ -47,11 +60,9 @@ struct RoomView: View {
         }
     }
 
-    
-
     private func send(_ draft: String) {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
+        guard !text.isEmpty, let model else { return }
         errorMessage = nil
 
         Task {

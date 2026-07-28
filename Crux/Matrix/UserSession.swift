@@ -6,6 +6,11 @@
 import Foundation
 import MatrixRustSDK
 
+enum RoomCreationError: LocalizedError {
+    case emptyName
+    var errorDescription: String? { "Rooms need a name." }
+}
+
 /// A signed-in Matrix session: the client, background sync and the room list.
 @Observable
 final class UserSession {
@@ -16,7 +21,7 @@ final class UserSession {
 
     /// The signed-in user's own display name, for menus etc.
     private(set) var displayName: String?
-    /// MXC for the signed-in user's own avatar. 
+    /// MXC for the signed-in user's own avatar.
     private(set) var avatarUrl: String?
 
     private let syncService: SyncService
@@ -43,5 +48,42 @@ final class UserSession {
 
     func stop() async {
         await syncService.stop()
+    }
+
+    // MARK: Room creation
+
+    /// Reuses an existing 1:1 DM if one exists rather than creating a duplicate.
+    func createDM(with userId: String, isEncrypted: Bool = true) async throws -> String {
+        if let existing = try? client.getDmRoom(userId: userId) {
+            return existing.id()
+        }
+        let params = CreateRoomParameters(
+            name: nil, isEncrypted: isEncrypted, isDirect: true,
+            visibility: .private, preset: .trustedPrivateChat, invite: [userId])
+        return try await client.createRoom(request: params)
+    }
+
+    func createRoom(name: String, topic: String? = nil, isEncrypted: Bool = true,
+                     isPublic: Bool = false, invite: [String] = [],
+                     canonicalAlias: String? = nil, avatar: String? = nil) async throws -> String {
+        guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { throw RoomCreationError.emptyName }
+        let params = CreateRoomParameters(
+            name: name, topic: topic, isEncrypted: isEncrypted,
+            visibility: isPublic ? .public : .private,
+            preset: isPublic ? .publicChat : .privateChat,
+            invite: invite.isEmpty ? nil : invite, avatar: avatar, canonicalAlias: canonicalAlias)
+        return try await client.createRoom(request: params)
+    }
+
+    /// Spaces are created via the same `createRoom` call, just flagged `isSpace`.
+    func createSpace(name: String, topic: String? = nil, isPublic: Bool = false,
+                      invite: [String] = []) async throws -> String {
+        guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { throw RoomCreationError.emptyName }
+        let params = CreateRoomParameters(
+            name: name, topic: topic, isEncrypted: false,
+            visibility: isPublic ? .public : .private,
+            preset: isPublic ? .publicChat : .privateChat,
+            invite: invite.isEmpty ? nil : invite, isSpace: true)
+        return try await client.createRoom(request: params)
     }
 }
