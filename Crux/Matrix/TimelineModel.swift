@@ -25,6 +25,8 @@ final class TimelineModel {
     struct Message: Identifiable {
         let id: String
         let sender: String
+        /// The sender's mxid, e.g. for reporting/blocking or opening their profile.
+        let senderId: String
         /// mxc:// URL for the sender's avatar (as seen in this room), or nil if unknown.
         /// Resolve to an image with `MediaLoader`.
         let senderAvatarUrl: String?
@@ -133,6 +135,14 @@ final class TimelineModel {
         try await timeline?.markAsRead(receiptType: .read)
     }
 
+    /// Reports a message to the homeserver. `reason` is optional. Doesn't
+    /// hide the message locally — only messages the server has accepted can
+    /// be reported.
+    func report(_ message: Message, reason: String? = nil) async throws {
+        guard case .eventId(let eventID) = message.itemID else { return }
+        try await room.reportContent(eventId: eventID, reason: reason)
+    }
+
     /// Loads an older page of history. Call when the user scrolls near the top.
     /// Returns `true` once the very start of the room has been reached.
     @discardableResult
@@ -184,6 +194,7 @@ final class TimelineModel {
 
         return Message(id: item.uniqueId().id,
                        sender: Self.displayName(of: event),
+                       senderId: event.sender,
                        senderAvatarUrl: Self.avatarUrl(of: event),
                        body: body,
                        date: Self.date(from: event.timestamp),
@@ -244,13 +255,14 @@ extension TimelineModel.Message {
     //for demo messages
     static func sample(id: String = UUID().uuidString,
                        sender: String,
+                       senderId: String = "@sample:example.org",
                        senderAvatarUrl: String? = nil,
                        body: String,
                        isOwn: Bool = false,
                        isEdited: Bool = false,
                        sendState: TimelineModel.SendState = .sent,
                        reactions: [TimelineModel.Reaction] = []) -> Self {
-        .init(id: id, sender: sender, senderAvatarUrl: senderAvatarUrl, body: body, date: Date(),
+        .init(id: id, sender: sender, senderId: senderId, senderAvatarUrl: senderAvatarUrl, body: body, date: Date(),
               isOwn: isOwn, isEdited: isEdited, sendState: sendState,
               reactions: reactions, isEditable: isOwn, canReply: true,
               itemID: .eventId(eventId: id))

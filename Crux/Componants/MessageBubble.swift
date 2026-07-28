@@ -11,6 +11,16 @@ import SwiftUI
 
 struct MessageBubble: View {
     let message: TimelineModel.Message
+    let onReport: () -> Void
+    let onViewProfile: () -> Void
+
+    init(message: TimelineModel.Message,
+         onReport: @escaping () -> Void = {},
+         onViewProfile: @escaping () -> Void = {}) {
+        self.message = message
+        self.onReport = onReport
+        self.onViewProfile = onViewProfile
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -51,6 +61,12 @@ struct MessageBubble: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .contextMenu {
+            Button("View Profile", systemImage: "person.crop.circle", action: onViewProfile)
+            if !message.isOwn {
+                Button("Report Message", systemImage: "flag", role: .destructive, action: onReport)
+            }
+        }
     }
 }
 
