@@ -17,6 +17,7 @@ final class UserSession {
     let client: Client
     let userId: String
     let roomList: RoomListModel
+    let spaces: SpaceListModel
     let verification: VerificationModel
 
     /// The signed-in user's own display name, for menus etc.
@@ -25,12 +26,15 @@ final class UserSession {
     private(set) var avatarUrl: String?
 
     private let syncService: SyncService
+    private let roomListService: RoomListService
 
     init(client: Client) async throws {
         self.client = client
         userId = try client.userId()
         syncService = try await client.syncService().finish()
-        roomList = RoomListModel(service: syncService.roomListService())
+        roomListService = syncService.roomListService()
+        roomList = RoomListModel(service: roomListService)
+        spaces = SpaceListModel(service: await client.spaceService())
         verification = VerificationModel(client: client)
     }
 
@@ -38,6 +42,7 @@ final class UserSession {
     func start() async {
         await syncService.start()
         await roomList.start()
+        await spaces.start()
         await verification.start()
 
         if let profile = try? await client.getProfile(userId: userId) {
@@ -48,6 +53,10 @@ final class UserSession {
 
     func stop() async {
         await syncService.stop()
+    }
+
+    func room(id: String) throws -> Room {
+        try roomListService.room(roomId: id)
     }
 
     // MARK: Room creation
