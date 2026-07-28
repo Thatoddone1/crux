@@ -60,7 +60,7 @@ final class VerificationModel {
         _ = try? await makeController()
     }
 
-    // MARK: - Starting a ceremony from this device
+    // MARK: - start verification from this device
 
     /// Verifies this device against one of the user's other signed-in devices.
     func requestDeviceVerification() async throws {

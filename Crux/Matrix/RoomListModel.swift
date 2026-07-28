@@ -65,8 +65,39 @@ final class RoomListModel {
         let result = allRooms.entriesWithDynamicAdapters(pageSize: 100, listener: listener)
         controller = result.controller()
         entriesHandle = result.entriesStream()
-        _ = controller?.setFilter(kind: .all(filters: [.nonLeft]))
+        setFilter(.none)
     }
+
+    /// Rooms that have left the list (e.g. by leaving) are always excluded; spaces
+    /// are surfaced separately via `SpaceListModel`, not mixed into this list.
+    private static let baseFilters: [RoomListEntriesDynamicFilterKind] = [.nonLeft, .nonSpace]
+
+    func setFilter(_ kind: RoomListEntriesDynamicFilterKind) {
+        _ = controller?.setFilter(kind: .all(filters: Self.baseFilters + [kind]))
+    }
+
+    enum RoomFilter {
+        case all, invites, joined, favourites, unread, lowPriority
+        case category(RoomListFilterCategory)
+        case search(String)
+
+        var sdkKind: RoomListEntriesDynamicFilterKind {
+            switch self {
+            case .all: .none
+            case .invites: .invite
+            case .joined: .joined
+            case .favourites: .favourite
+            case .unread: .unread
+            case .lowPriority: .lowPriority
+            case .category(let category): .category(expect: category)
+            case .search(let query): .normalizedMatchRoomName(pattern: query)
+            }
+        }
+    }
+
+    /// Named apart from `setFilter(_:)`: `RoomFilter` and `RoomListEntriesDynamicFilterKind`
+    /// share case names like `.unread`/`.category`, so an overload would be ambiguous.
+    func applyFilter(_ filter: RoomFilter) { setFilter(filter.sdkKind) }
 
     private func apply(_ updates: [RoomListEntriesUpdate]) {
         for update in updates {
@@ -143,8 +174,8 @@ private nonisolated final class RoomListEntriesBridge: RoomListEntriesListener {
 }
 
 /// Forwards one room's info updates (unread counts, name, …) from the SDK's
-/// background threads.
-private nonisolated final class RoomInfoBridge: RoomInfoListener {
+/// background threads. Not private: reused by RoomDetailsModel.
+nonisolated final class RoomInfoBridge: RoomInfoListener {
     private let handler: @Sendable (RoomInfo) -> Void
 
     init(_ handler: @escaping @Sendable (RoomInfo) -> Void) {
