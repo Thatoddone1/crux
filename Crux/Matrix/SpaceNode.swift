@@ -14,12 +14,18 @@ final class SpaceNode: Identifiable {
     private(set) var spaceRoom: SpaceRoom
     private(set) var children: [SpaceNode] = []
     var isSpace: Bool { spaceRoom.roomType == .space }
+    var isJoined: Bool { spaceRoom.state == .joined }
 
     private let service: SpaceService
+    // Retained alongside the handles: dropping it frees the Rust object the
+    // subscriptions and pagination read from, same reasoning as RoomListModel.roomList.
+    private var list: SpaceRoomList?
     private var roomsHandle: TaskHandle?
     private var spaceHandle: TaskHandle?
     private var childSpaceRooms: [SpaceRoom] = []
     private var childNodes: [String: SpaceNode] = [:]
+
+    private var isExpanding = false
 
     init(spaceRoom: SpaceRoom, service: SpaceService) {
         self.spaceRoom = spaceRoom
@@ -28,8 +34,12 @@ final class SpaceNode: Identifiable {
 
     /// No-op for plain rooms and for spaces already expanded.
     func expand() async throws {
-        guard isSpace, roomsHandle == nil else { return }
+        guard isSpace, roomsHandle == nil, !isExpanding else { return }
+        isExpanding = true
+        defer { isExpanding = false }
+
         let list = try await service.spaceRoomList(spaceId: spaceRoom.roomId)
+        self.list = list
 
         let roomsListener = SpaceEntriesBridge { [weak self] updates in
             Task { @MainActor in
@@ -48,11 +58,18 @@ final class SpaceNode: Identifiable {
             }
         }
         spaceHandle = list.subscribeToSpaceUpdates(listener: spaceListener)
+
+        // SpaceRoomList is paginated — rooms() only returns what's already been
+        // fetched, so nothing shows up until we actually page through it.
+        while case .idle(let endReached) = list.paginationState(), !endReached {
+            try await list.paginate()
+        }
     }
 
     /// Drops subscriptions and clears children. Call when a UI row collapses so we
     /// don't keep a live SpaceRoomList open for every space ever expanded in a session.
     func collapse() {
+        list = nil
         roomsHandle = nil
         spaceHandle = nil
         childSpaceRooms = []
