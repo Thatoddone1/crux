@@ -72,8 +72,11 @@ final class RoomListModel {
     /// are surfaced separately via `SpaceListModel`, not mixed into this list.
     private static let baseFilters: [RoomListEntriesDynamicFilterKind] = [.nonLeft, .nonSpace]
 
+    /// `.none` means "no extra filter" — it must never be ANDed in via `.all`,
+    /// since `.none` as a filter to match against always fails, not always passes.
     func setFilter(_ kind: RoomListEntriesDynamicFilterKind) {
-        _ = controller?.setFilter(kind: .all(filters: Self.baseFilters + [kind]))
+        let filters = kind == .none ? Self.baseFilters : Self.baseFilters + [kind]
+        _ = controller?.setFilter(kind: .all(filters: filters))
     }
 
     enum RoomFilter {
