@@ -66,9 +66,6 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
-            .task {
-                environment = await fetchEnvironment()
-            }
         }
 
     }
