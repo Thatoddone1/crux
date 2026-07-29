@@ -35,9 +35,18 @@ final class VerificationModel {
     private(set) var deviceVerificationState: VerificationState = .unknown
     var isDeviceVerified: Bool { deviceVerificationState == .verified }
 
+    /// Whether there's another device to run the emoji ceremony against; if not, recovery key is the only option.
+    private(set) var hasOtherDevices = false
+
+    /// Whether recovery (secret storage) is set up, so verifying by recovery key is possible.
+    private(set) var recoveryState: RecoveryState = .unknown
+    var canVerifyWithRecoveryKey: Bool { recoveryState != .disabled }
+
     private let client: Client
+    private var encryption: Encryption?
     private var controller: SessionVerificationController?
     private var stateHandle: TaskHandle?
+    private var recoveryHandle: TaskHandle?
 
     init(client: Client) {
         self.client = client
@@ -52,12 +61,28 @@ final class VerificationModel {
         guard controller == nil else { return }
 
         let encryption = client.encryption()
+        self.encryption = encryption
         deviceVerificationState = encryption.verificationState()
         stateHandle = encryption.verificationStateListener(listener: VerificationStateBridge { state in
             Task { @MainActor [weak self] in self?.deviceVerificationState = state }
         })
 
+        recoveryState = encryption.recoveryState()
+        recoveryHandle = encryption.recoveryStateListener(listener: RecoveryStateBridge { state in
+            Task { @MainActor [weak self] in self?.recoveryState = state }
+        })
+
+        hasOtherDevices = (try? await encryption.hasDevicesToVerifyAgainst()) ?? false
+
         _ = try? await makeController()
+    }
+
+    // MARK: - Verify by recovery key
+
+    /// Verifies this device using the recovery key instead of the emoji ceremony; on success the SDK marks it verified.
+    func verifyWithRecoveryKey(_ key: String) async throws {
+        let encryption = self.encryption ?? client.encryption()
+        try await encryption.recover(recoveryKey: key.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
     // MARK: - start verification from this device
@@ -175,6 +200,19 @@ private nonisolated final class VerificationStateBridge: VerificationStateListen
     }
 
     func onUpdate(status: VerificationState) {
+        handler(status)
+    }
+}
+
+/// Forwards recovery (secret storage / key backup) state changes from the SDK's background threads.
+private nonisolated final class RecoveryStateBridge: RecoveryStateListener {
+    private let handler: @Sendable (RecoveryState) -> Void
+
+    init(_ handler: @escaping @Sendable (RecoveryState) -> Void) {
+        self.handler = handler
+    }
+
+    func onUpdate(status: RecoveryState) {
         handler(status)
     }
 }

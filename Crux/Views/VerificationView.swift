@@ -39,10 +39,25 @@ struct VerificationView: View {
             if session.verification.isDeviceVerified {
                 Text("Already verified")
             } else {
-                Button("Request Verification") {
-                    Task {
-                        try await session.verification.requestDeviceVerification()
+                // Emoji verification needs another signed-in device.
+                if session.verification.hasOtherDevices {
+                    Button("Verify with another device") {
+                        Task {
+                            try await session.verification.requestDeviceVerification()
+                        }
                     }
+                }
+
+                if session.verification.canVerifyWithRecoveryKey {
+                    NavigationLink("Verify with recovery key") {
+                        RecoveryKeyVerificationView()
+                    }
+                }
+
+                if !session.verification.hasOtherDevices && !session.verification.canVerifyWithRecoveryKey {
+                    ContentUnavailableView("Can't verify yet",
+                                           systemImage: "key.slash",
+                                           description: Text("Sign in on another device, or set up a recovery key, then try again."))
                 }
             }
         case .incomingRequest:
