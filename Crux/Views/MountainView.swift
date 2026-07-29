@@ -11,16 +11,16 @@ struct MountainView: View {
     @Environment(UserSession.self) var session
 
     private enum Pile {
-        case mountain, slope
-        var other: Pile { self == .mountain ? .slope : .mountain }
+        case peak, slope
+        var other: Pile { self == .peak ? .slope : .peak }
     }
-    /// Which pile is open (accordion — only one at a time). Defaults to mountain,
+    /// Which pile is open (accordion — only one at a time). Defaults to peak,
     /// the priority view; `effectiveExpanded` falls back to slope until something
-    /// has scored high enough to land on the mountain.
-    @State private var expanded: Pile = .mountain
+    /// has scored high enough to land on the peak.
+    @State private var expanded: Pile = .peak
 
     /// Score at or above which a room is important enough to go to mountain
-    private static let mountainThreshold = 50
+    private static let peakThreshold = 50
 
     private var pile: [RoomListModel.Summary] {
         session.roomList.summaries.filter(\.hasUnread)
@@ -34,8 +34,8 @@ struct MountainView: View {
                                        description: Text("Unread rooms stack up here."))
             } else {
                 VStack(spacing: 0) {
-                    header(.mountain, title: "Mountain", icon: "mountain.2.fill", items: mountainPile)
-                    if effectiveExpanded == .mountain { deck(mountainPile) }
+                    header(.peak, title: "Peak", icon: "mountain.2.fill", items: peakPile)
+                    if effectiveExpanded == .peak { deck(peakPile) }
 
                     header(.slope, title: "Slope", icon: "arrow.down.forward", items: slopePile)
                     if effectiveExpanded == .slope { deck(slopePile) }
@@ -88,13 +88,13 @@ struct MountainView: View {
     // MARK: - Buckets
 
     
-    private var mountainPile: [RoomListModel.Summary] {
-        pile.filter { score(for: $0) >= Self.mountainThreshold }
+    private var peakPile: [RoomListModel.Summary] {
+        pile.filter { score(for: $0) >= Self.peakThreshold }
             .sorted { score(for: $0) > score(for: $1) }
     }
 
     private var slopePile: [RoomListModel.Summary] {
-        pile.filter { score(for: $0) < Self.mountainThreshold }
+        pile.filter { score(for: $0) < Self.peakThreshold }
             .sorted { score(for: $0) > score(for: $1) }
     }
 
@@ -105,8 +105,8 @@ struct MountainView: View {
     /// Never leaves an empty pile open (nothing to show): falls back to the other one so the screen is always filled.
     private var effectiveExpanded: Pile {
         switch expanded {
-        case .mountain: return mountainPile.isEmpty ? .slope : .mountain
-        case .slope: return slopePile.isEmpty ? .mountain : .slope
+        case .peak: return peakPile.isEmpty ? .slope : .peak
+        case .slope: return slopePile.isEmpty ? .peak : .slope
         }
     }
 }
