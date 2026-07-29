@@ -44,8 +44,9 @@ struct SettingsView: View {
                 }
                 Section("About") {
                     Text("Version: \(version) (\(buildNumber))")
-                    Link("Reach out for support", destination: URL(string: "mailto:hello@joshuarocks.me")!)
+                    Link("Reach out for support", destination: URL(string: "mailto:support@joshuarocks.me")!)
                     Text("Created by [Joshua K](https://joshuarocks.me) with ❤️")
+                    Text("See the source code on [GitHub](https://github.com/Thatoddone1/crux)")
                 }
                 Section("Legal") {
                     NavigationLink("Matrix Rust SDK License") {
