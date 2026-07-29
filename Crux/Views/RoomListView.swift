@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import MatrixRustSDK
 
 enum RoomListRoute: Hashable {
     case newRoom
@@ -19,7 +20,11 @@ struct RoomListView: View {
     var body: some View {
         NavigationStack(path: $path) {
             List(session.roomList.summaries) { summary in
-                NavigationLink(summary.name, value: RoomListRoute.room(id: summary.id))
+                if summary.isInvite {
+                    RoomInviteRow(summary: summary)
+                } else {
+                    NavigationLink(summary.name, value: RoomListRoute.room(id: summary.id))
+                }
             }
             .navigationTitle("Rooms")
             .overlay {
@@ -52,3 +57,32 @@ struct RoomListView: View {
         )
         }
     }
+
+/// An invited-but-not-joined room: shown dimmed with a Join button rather than
+/// a navigation link, since the room can't be opened until the invite's accepted.
+private struct RoomInviteRow: View {
+    let summary: RoomListModel.Summary
+    @State private var isJoining = false
+
+    var body: some View {
+        HStack {
+            Text(summary.name)
+            Spacer()
+            if isJoining {
+                ProgressView()
+            } else {
+                Button("Join") { join() }
+                    .buttonStyle(.bordered)
+            }
+        }
+        .opacity(isJoining ? 1 : 0.5)
+    }
+
+    private func join() {
+        isJoining = true
+        Task {
+            try? await summary.room.join()
+            isJoining = false
+        }
+    }
+}

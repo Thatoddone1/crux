@@ -27,6 +27,10 @@ final class RoomListModel {
         let isFavorite: Bool
         let isLowPriority: Bool
 
+        /// Whether we've joined this room or are only invited to it. Invites live
+        /// in the same list but can't be entered until accepted.
+        let membership: Membership
+
         ///MXC for room's avatar/picture
         let avatarUrl: String?
 
@@ -34,6 +38,8 @@ final class RoomListModel {
 
         /// if there is at least one unread message in the entire room list
         var hasUnread: Bool { unreadMessages > 0 || isMarkedUnread }
+
+        var isInvite: Bool { membership == .invited }
 
         func priorityScore(messages: [TimelineModel.Message]) async -> Int {
             var score = 0
@@ -188,6 +194,7 @@ final class RoomListModel {
                            isDirect: info?.isDirect ?? false,
                            isFavorite: info?.isFavourite ?? false, //this uses the british spelling since the SDK does. Sorry for the inconsistancy.
                            isLowPriority: info?.isLowPriority ?? false,
+                           membership: info?.membership ?? room.membership(),
                            avatarUrl: room.avatarUrl() ?? info?.heroes.first?.avatarUrl,
                            room: room)
         }
@@ -225,7 +232,8 @@ final class RoomListModel {
 }
 
 /// Forwards room list updates from the SDK's background threads.
-private nonisolated final class RoomListEntriesBridge: RoomListEntriesListener {
+/// Not private: reused by SpaceListModel's invited-spaces stream.
+nonisolated final class RoomListEntriesBridge: RoomListEntriesListener {
     private let handler: @Sendable ([RoomListEntriesUpdate]) -> Void
 
     init(_ handler: @escaping @Sendable ([RoomListEntriesUpdate]) -> Void) {

@@ -34,7 +34,7 @@ final class UserSession {
         syncService = try await client.syncService().finish()
         roomListService = syncService.roomListService()
         roomList = RoomListModel(service: roomListService)
-        spaces = SpaceListModel(service: await client.spaceService())
+        spaces = SpaceListModel(service: await client.spaceService(), roomListService: roomListService)
         verification = VerificationModel(client: client)
     }
 

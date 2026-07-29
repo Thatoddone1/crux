@@ -17,14 +17,25 @@ struct SpaceListView: View {
 
     var body: some View {
         NavigationStack {
-            List(session.spaces.nodes) { node in
-                NavigationLink(value: SpaceRoute.space(id: node.id)) {
-                    SpaceRoomRow(spaceRoom: node.spaceRoom)
+            List {
+                if !session.spaces.invites.isEmpty {
+                    Section("Invites") {
+                        ForEach(session.spaces.invites) { invite in
+                            SpaceInviteRow(invite: invite)
+                        }
+                    }
+                }
+                Section {
+                    ForEach(session.spaces.nodes) { node in
+                        NavigationLink(value: SpaceRoute.space(id: node.id)) {
+                            SpaceRoomRow(spaceRoom: node.spaceRoom)
+                        }
+                    }
                 }
             }
             .navigationTitle("Spaces")
             .overlay {
-                if session.spaces.nodes.isEmpty {
+                if session.spaces.nodes.isEmpty && session.spaces.invites.isEmpty {
                     ContentUnavailableView("No Spaces Yet", systemImage: "square.stack.3d.up",
                                            description: Text("Spaces you've joined appear here."))
                 }
@@ -90,6 +101,55 @@ private extension [SpaceNode] {
     /// there's no meaningful server-side ordering to begin with.
     var sortedJoinedFirst: [SpaceNode] {
         sorted { $0.isJoined && !$1.isJoined }
+    }
+}
+
+/// An invited-but-not-joined space: dimmed row with a Join button, no navigation
+/// (you can't browse the space until you're in it).
+private struct SpaceInviteRow: View {
+    @Environment(UserSession.self) private var session
+    let invite: SpaceListModel.Invite
+    @State private var avatar: UIImage?
+    @State private var isJoining = false
+
+    var body: some View {
+        HStack {
+            avatarView
+            Text(invite.name)
+            Spacer()
+            if isJoining {
+                ProgressView()
+            } else {
+                Button("Join") { join() }
+                    .buttonStyle(.bordered)
+            }
+        }
+        .opacity(isJoining ? 1 : 0.5)
+        .task {
+            guard let url = invite.avatarUrl else { return }
+            avatar = await MediaLoader.shared.avatar(for: url, client: session.client)
+        }
+    }
+
+    @ViewBuilder private var avatarView: some View {
+        if let avatar {
+            Image(uiImage: avatar)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 28, height: 28)
+                .clipShape(.circle)
+        } else {
+            Image(systemName: "square.stack.3d.up.fill")
+                .frame(width: 28, height: 28)
+        }
+    }
+
+    private func join() {
+        isJoining = true
+        Task {
+            try? await invite.room.join()
+            isJoining = false
+        }
     }
 }
 
