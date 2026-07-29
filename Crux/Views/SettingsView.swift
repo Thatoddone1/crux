@@ -69,6 +69,7 @@ struct SettingsView: View {
                         }
                         .navigationTitle("Crux License Exceptions")
                     }
+                    Link("Privacy Policy", destination: URL(string: "https://joshuarocks.me/crux/privacy")!)
                 }
             }
             .navigationTitle("Settings")
