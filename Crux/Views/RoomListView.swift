@@ -20,11 +20,14 @@ struct RoomListView: View {
     var body: some View {
         NavigationStack(path: $path) {
             List(session.roomList.summaries) { summary in
-                if summary.isInvite {
-                    RoomInviteRow(summary: summary)
-                } else {
-                    NavigationLink(summary.name, value: RoomListRoute.room(id: summary.id))
+                Group {
+                    if summary.isInvite {
+                        RoomInviteRow(summary: summary)
+                    } else {
+                        NavigationLink(summary.name, value: RoomListRoute.room(id: summary.id))
+                    }
                 }
+                .leaveSwipe(session, roomId: summary.id, decline: summary.isInvite)
             }
             .navigationTitle("Rooms")
             .overlay {

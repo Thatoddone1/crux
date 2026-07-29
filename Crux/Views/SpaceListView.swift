@@ -22,6 +22,7 @@ struct SpaceListView: View {
                     Section("Invites") {
                         ForEach(session.spaces.invites) { invite in
                             SpaceInviteRow(invite: invite)
+                                .leaveSwipe(session, roomId: invite.id, decline: true)
                         }
                     }
                 }
@@ -30,6 +31,7 @@ struct SpaceListView: View {
                         NavigationLink(value: SpaceRoute.space(id: node.id)) {
                             SpaceRoomRow(spaceRoom: node.spaceRoom)
                         }
+                        .leaveSwipe(session, roomId: node.id)
                     }
                 }
             }
@@ -71,8 +73,11 @@ private struct SpaceDetailView: View {
 /// One row below the top level — a nested space (expands in place) or a room
 /// (opens if joined, otherwise just offers to join).
 private struct SpaceNodeRow: View {
+    @Environment(UserSession.self) private var session
     let node: SpaceNode
     @State private var isExpanded = false
+
+    private var isJoined: Bool { node.spaceRoom.state == .joined }
 
     var body: some View {
         if node.isSpace {
@@ -86,10 +91,12 @@ private struct SpaceNodeRow: View {
             .task(id: isExpanded) {
                 if isExpanded { try? await node.expand() }
             }
-        } else if node.spaceRoom.state == .joined {
+            .leaveSwipeIf(isJoined, session: session, roomId: node.id)
+        } else if isJoined {
             NavigationLink(value: SpaceRoute.room(id: node.id)) {
                 SpaceRoomRow(spaceRoom: node.spaceRoom)
             }
+            .leaveSwipe(session, roomId: node.id)
         } else {
             SpaceRoomRow(spaceRoom: node.spaceRoom)
         }

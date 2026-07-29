@@ -59,6 +59,11 @@ final class UserSession {
         try roomListService.room(roomId: id)
     }
 
+    /// Leaves a room or space; declines the invite if you're only invited.
+    func leave(_ roomId: String) async {
+        try? await room(id: roomId).leave()
+    }
+
     // MARK: Room creation
 
     /// Reuses an existing 1:1 DM if one exists rather than creating a duplicate.
