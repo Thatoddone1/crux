@@ -5,6 +5,7 @@
 
 import Foundation
 import MatrixRustSDK
+import FoundationModels
 
 /// up to date list of all the rooms for a given user (session)
 @Observable
@@ -14,13 +15,16 @@ final class RoomListModel {
         let name: String
         /// Unread message count (all messages since your read marker).
         let unreadMessages: Int
-        /// Unread *notifications* — messages that should badge, per notification settings.
+        /// Unread *notifications*—this accounts for any notification settings
         let unreadNotifications: Int
+        /// Unread events that mention/highlight you specifically — the SDK's own
+        /// count, not something we compute by scanning messages ourselves.
+        let unreadMentions: Int
         /// Set when you (or another client) explicitly marked the room unread.
         let isMarkedUnread: Bool
 
         let isDirect: Bool
-        let isFavourite: Bool
+        let isFavorite: Bool
         let isLowPriority: Bool
 
         ///MXC for room's avatar/picture
@@ -29,7 +33,45 @@ final class RoomListModel {
         let room: Room
 
         /// if there is at least one unread message in the entire room list
-        var hasUnread: Bool { unreadNotifications > 0 || isMarkedUnread }
+        var hasUnread: Bool { unreadMessages > 0 || isMarkedUnread }
+
+        func priorityScore(messages: [TimelineModel.Message]) async -> Int {
+            var score = 0
+
+            if unreadMentions > 0 {
+                score += 80 //getting directly mentioned is treated as a high priority thing
+                print("[priorityScore] \(name): +80 for \(unreadMentions) unread mention(s) -> \(score)") // DEBUG/TUNING
+            }
+
+            if isFavorite {score += 30}
+            if isDirect {score += 30}
+            if isLowPriority {score -= 60}
+            print("[priorityScore] \(name): isFavorite=\(isFavorite) isDirect=\(isDirect) isLowPriority=\(isLowPriority) -> \(score)") // DEBUG: remove
+
+            let transcript = messages.suffix(10)
+                .map { "\($0.sender) (\($0.date.formatted(date: .abbreviated, time: .shortened))): \($0.body)" }
+                .joined(separator: "\n")
+            print("[priorityScore] \(name): transcript fed to LLM:\n\(transcript)") // DEBUG: remove
+
+            let lmsession = LanguageModelSession()
+
+            let response = try? await lmsession.respond(
+                to: """
+                Here is the contents of this Matrix room, over the last few messages. Analyzing only the messages that matter, disregarding old messages, you are going to score this conversation on a scale from 0-50, based on how "important" the latest message, and the messages that influence that one directly, are. Are they life threataning, something that requires you absolute attention right now, or something less important, interesting to follow along with, but not ground breaking.
+
+                \(transcript)
+                """,
+                generating: Int.self
+            )
+            print("[priorityScore] \(name): LLM response=\(response?.content.description ?? "nil")") // DEBUG/TUNING
+
+            score += response?.content ?? 0
+
+            let clamped = min(max(score, 0), 100)
+            print("[priorityScore] \(name): final -> \(score) (clamped \(clamped))") // DEBUG/TUNING
+
+            return clamped
+        }
     }
 
     private(set) var summaries: [Summary] = []
@@ -45,9 +87,6 @@ final class RoomListModel {
     private var controller: RoomListDynamicEntriesController?
     private var entriesHandle: TaskHandle?
 
-    // Unread counts aren't a plain field on Room; they arrive live, per room,
-    // through `subscribeToRoomInfoUpdates`. We keep the latest info for each
-    // room here, plus the handle keeping that subscription alive.
     private var roomInfo: [String: RoomInfo] = [:]
     private var infoHandles: [String: TaskHandle] = [:]
 
@@ -130,9 +169,10 @@ final class RoomListModel {
                            name: room.displayName() ?? room.id(),
                            unreadMessages: Int(info?.numUnreadMessages ?? 0),
                            unreadNotifications: Int(info?.numUnreadNotifications ?? 0),
+                           unreadMentions: Int(info?.numUnreadMentions ?? 0),
                            isMarkedUnread: info?.isMarkedUnread ?? false,
                            isDirect: info?.isDirect ?? false,
-                           isFavourite: info?.isFavourite ?? false,
+                           isFavorite: info?.isFavourite ?? false, //this uses the british spelling since the SDK does. Sorry for the inconsistancy.
                            isLowPriority: info?.isLowPriority ?? false,
                            avatarUrl: room.avatarUrl() ?? info?.heroes.first?.avatarUrl,
                            room: room)
@@ -159,6 +199,13 @@ final class RoomListModel {
                 }
             }
             infoHandles[id] = room.subscribeToRoomInfoUpdates(listener: listener)
+
+            // Seeds the current snapshot: the subscription above only pushes future changes.
+            Task { @MainActor [weak self] in
+                guard let info = try? await room.roomInfo() else { return }
+                self?.roomInfo[id] = info
+                self?.rebuildSummaries()
+            }
         }
     }
 }

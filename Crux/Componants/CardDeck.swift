@@ -107,7 +107,9 @@ private let deckDemos = [
     VStack {
         Toggle("Collapsed", isOn: $collapsed).padding()
         CardDeck(items: deckDemos, collapsed: collapsed) { room in
-            MountainCard(messages: room.messages, roomName: room.name, onSend: { _ in })
+            MountainCard(messages: room.messages, roomName: room.name,
+                         isFavorite: false, isDirect: false, priorityScore: 0,
+                         onSend: { _ in })
         }
     }
 }

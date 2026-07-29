@@ -36,6 +36,8 @@ final class TimelineModel {
         let isEdited: Bool
         let sendState: SendState
         let reactions: [Reaction]
+        /// Intentional mentions (m.mentions) carried by this message, if any.
+        let mentions: Mentions?
         /// Whether the local user is currently allowed to edit this message.
         let isEditable: Bool
         /// Whether this message can be replied to (only true once it has an event id).
@@ -202,6 +204,7 @@ final class TimelineModel {
                        isEdited: Self.isEdited(content.kind),
                        sendState: Self.sendState(of: event.localSendState),
                        reactions: reactions,
+                       mentions: Self.mentions(of: content.kind),
                        isEditable: event.isEditable,
                        canReply: event.canBeRepliedTo,
                        itemID: event.eventOrTransactionId)
@@ -221,6 +224,11 @@ final class TimelineModel {
     private static func isEdited(_ kind: MsgLikeKind) -> Bool {
         if case .message(let content) = kind { return content.isEdited }
         return false
+    }
+
+    private static func mentions(of kind: MsgLikeKind) -> Mentions? {
+        if case .message(let content) = kind { return content.mentions }
+        return nil
     }
 
     private static func sendState(of state: EventSendState?) -> SendState {
@@ -261,10 +269,11 @@ extension TimelineModel.Message {
                        isOwn: Bool = false,
                        isEdited: Bool = false,
                        sendState: TimelineModel.SendState = .sent,
-                       reactions: [TimelineModel.Reaction] = []) -> Self {
+                       reactions: [TimelineModel.Reaction] = [],
+                       mentions: Mentions? = nil) -> Self {
         .init(id: id, sender: sender, senderId: senderId, senderAvatarUrl: senderAvatarUrl, body: body, date: Date(),
               isOwn: isOwn, isEdited: isEdited, sendState: sendState,
-              reactions: reactions, isEditable: isOwn, canReply: true,
+              reactions: reactions, mentions: mentions, isEditable: isOwn, canReply: true,
               itemID: .eventId(eventId: id))
     }
 }
