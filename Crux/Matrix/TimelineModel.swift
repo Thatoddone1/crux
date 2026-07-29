@@ -216,7 +216,7 @@ final class TimelineModel {
         case .message(let content): content.body
         case .sticker(let body, _, _): body
         case .redacted: "(message deleted)"
-        case .unableToDecrypt: "(unable to decrypt)"
+        case .unableToDecrypt: "(unable to decrypt, please verify in settings!)"
         case .poll, .other, .liveLocation: nil
         }
     }
