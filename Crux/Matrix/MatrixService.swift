@@ -176,7 +176,34 @@ final class MatrixService {
         try? await session.client.logout()
         clearStoredSession()
     }
-    
+
+    // MARK: - Account deactivation
+
+    /// True only on legacy `m.login.password` servers; MAS/OAuth servers deactivate via `accountDeactivationURL()`.
+    func canDeactivateInApp() -> Bool {
+        guard case .signedIn(let session) = state else { return false }
+        return session.client.canDeactivateAccount()
+    }
+
+    /// The homeserver's account-management page for deactivation (MAS/OAuth), or `nil` if it doesn't offer one.
+    func accountDeactivationURL() async -> URL? {
+        guard case .signedIn(let session) = state else { return nil }
+        guard let string = try? await session.client.accountUrl(action: .accountDeactivate),
+              let url = URL(string: string) else { return nil }
+        return url
+    }
+
+    /// Permanently deletes a password-based account, then tears down the local session.
+    func deactivateAccount(password: String, eraseData: Bool) async throws {
+        guard case .signedIn(let session) = state else { return }
+        let authData = AuthData.password(passwordDetails: .init(identifier: session.userId, password: password))
+        try await session.client.deactivateAccount(authData: authData, eraseData: eraseData)
+
+        state = .signedOut
+        await session.stop()
+        clearStoredSession()
+    }
+
     // MARK: - Private
 
     private func finishLogin(with client: Client) async throws {

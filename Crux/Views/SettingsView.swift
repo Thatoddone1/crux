@@ -36,6 +36,12 @@ struct SettingsView: View {
                         VerificationView()
                     }
                 }
+                Section {
+                    NavigationLink("Delete Account") {
+                        DeleteAccountView()
+                    }
+                    .foregroundStyle(.red)
+                }
                 Section("About") {
                     Text("Version: \(version) (\(buildNumber))")
                     Link("Reach out for support", destination: URL(string: "mailto:hello@joshuarocks.me")!)
