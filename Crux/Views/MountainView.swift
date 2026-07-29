@@ -50,7 +50,9 @@ struct MountainView: View {
     // MARK: - Pieces
 
     private func deck(_ items: [RoomListModel.Summary]) -> some View {
-        CardDeck(items: items) { summary in
+        CardDeck(items: items, onDismiss: { summary in
+            Task { await session.roomList.markRead(summary) }
+        }) { summary in
             MountainCardListView(summary: summary)
         }
         .frame(maxHeight: .infinity)

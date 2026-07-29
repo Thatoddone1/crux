@@ -96,6 +96,12 @@ final class RoomListModel {
         priorityScores[summary.id] = await summary.priorityScore(messages: messages)
     }
 
+    /// Marks a room read, clearing both its unread receipts and any manual unread flag.
+    func markRead(_ summary: Summary) async {
+        try? await summary.room.markAsRead(receiptType: .read)
+        if summary.isMarkedUnread { try? await summary.room.setUnreadFlag(newValue: false) }
+    }
+
     private let service: RoomListService
     private var rooms: [Room] = []
 

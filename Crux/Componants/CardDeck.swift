@@ -14,6 +14,8 @@ struct CardDeck<Item: Identifiable, Card: View>: View {
     /// When true the pile tightens into a compact stack (for showing several
     /// piles at once); when false it's the browsable deck.
     var collapsed: Bool = false
+    /// Swipe the focused card right to dismiss it; nil disables swiping.
+    var onDismiss: ((Item) -> Void)? = nil
     @ViewBuilder let card: (Item) -> Card
 
     /// Tracked by the item's own id, not a raw array position: if `items` reorders
@@ -21,25 +23,33 @@ struct CardDeck<Item: Identifiable, Card: View>: View {
     /// focused instead of the front slot silently showing a different room.
     @State private var focusedID: Item.ID?
     /// Live finger movement during a drag; resets to 0 automatically on release.
-    @GestureState private var dragTranslation: CGFloat = 0
+    @GestureState private var drag: CGSize = .zero
+    /// The card flying off to the right after a dismiss.
+    @State private var dismissedID: Item.ID?
 
     private var focusedIndex: Int {
         guard let focusedID, let index = items.firstIndex(where: { $0.id == focusedID }) else { return 0 }
         return index
     }
 
+    /// Horizontal drag = dismiss; vertical = focus change.
+    private var isSwiping: Bool { onDismiss != nil && abs(drag.width) > abs(drag.height) }
+
     var body: some View {
         // A continuous focus position: an integer at rest, fractional mid-drag,
         // so every card slides smoothly under your finger. Dragging up (negative
         // translation) advances toward later cards.
-        let position = CGFloat(focusedIndex) - dragTranslation / Deck.dragDistance
+        let position = CGFloat(focusedIndex) - (isSwiping ? 0 : drag.height) / Deck.dragDistance
 
         ZStack {
             ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                 let distance = CGFloat(index) - position     // 0 == focused/front
+                let swipeX = swipeX(item, distance)
                 card(item)
+                    .geometryGroup()                         // isolate card layout from the deck's transforms
                     .scaleEffect(scale(distance))
-                    .offset(y: distance * peek)              // later cards below, earlier above
+                    .rotationEffect(.degrees(tilt(swipeX)))
+                    .offset(x: swipeX, y: distance * peek)   // later cards below, earlier above
                     .opacity(opacity(distance))
                     .zIndex(-abs(distance))                  // focused (0) draws on top
                     .allowsHitTesting(abs(distance) < 1.5)   // only front-ish cards are tappable
@@ -50,17 +60,47 @@ struct CardDeck<Item: Identifiable, Card: View>: View {
         .contentShape(.rect)                                 // whole area is draggable
         .gesture(
             DragGesture()
-                .updating($dragTranslation) { value, state, _ in
-                    state = value.translation.height
+                .updating($drag) { value, state, _ in
+                    state = value.translation
                 }
                 .onEnded { value in
-                    // Use the projected (momentum) end so a flick travels.
-                    let moved = -value.predictedEndTranslation.height / Deck.dragDistance
-                    snap(to: Int((CGFloat(focusedIndex) + moved).rounded()))
+                    let t = value.translation
+                    if onDismiss != nil, abs(t.width) > abs(t.height), t.width > Deck.dismissDistance {
+                        dismiss()
+                    } else {
+                        // Use the projected (momentum) end so a flick travels.
+                        let moved = -value.predictedEndTranslation.height / Deck.dragDistance
+                        snap(to: Int((CGFloat(focusedIndex) + moved).rounded()))
+                    }
                 }
         )
+        .onChange(of: items.count) {
+            if let d = dismissedID, !items.contains(where: { $0.id == d }) { dismissedID = nil }
+        }
         .animation(.spring, value: focusedIndex)
+        .animation(.spring, value: dismissedID)
         .animation(.spring, value: collapsed)
+    }
+
+    /// Off-screen once dismissed, else follows the finger while the front card is swiped.
+    private func swipeX(_ item: Item, _ distance: CGFloat) -> CGFloat {
+        if dismissedID == item.id { return Deck.flyOff }
+        return isSwiping && abs(distance) < 0.5 ? drag.width : 0
+    }
+
+    private func tilt(_ x: CGFloat) -> Double {
+        Double(max(-Deck.maxTilt, min(Deck.maxTilt, x / Deck.tiltDivisor)))
+    }
+
+    private func dismiss() {
+        guard items.indices.contains(focusedIndex) else { return }
+        let item = items[focusedIndex]
+        let next = items.indices.contains(focusedIndex + 1) ? focusedIndex + 1 : focusedIndex - 1
+        withAnimation(.spring) {
+            dismissedID = item.id
+            if items.indices.contains(next) { focusedID = items[next].id }
+        }
+        onDismiss?(item)
     }
 
     // MARK: - Transforms
@@ -93,6 +133,10 @@ private nonisolated enum Deck {
     static let scaleStep: CGFloat = 0.09     // how fast far cards shrink
     static let minScale: CGFloat = 0.6
     static let opacityStep: CGFloat = 0.28   // how fast far cards fade (hidden past ~3.5)
+    static let dismissDistance: CGFloat = 120 // rightward travel (pt) to mark read
+    static let flyOff: CGFloat = 700         // off-screen resting x for a dismissed card
+    static let tiltDivisor: CGFloat = 18     // px of x-offset per degree of tilt
+    static let maxTilt: CGFloat = 12
 }
 
 #if DEBUG //just for previews

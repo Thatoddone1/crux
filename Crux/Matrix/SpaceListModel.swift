@@ -99,7 +99,6 @@ final class SpaceListModel {
             Invite(id: room.id(), name: room.displayName() ?? room.id(),
                    avatarUrl: room.avatarUrl(), room: room)
         }
-        print("[SpaceInvites] stream delivered \(inviteRooms.count) invited space(s)") // DEBUG: remove once confirmed
     }
 
     private func rebuildNodes() {
