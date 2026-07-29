@@ -8,8 +8,8 @@ import SwiftUI
 
 struct MountainCardListView: View {
     let summary: RoomListModel.Summary
+    @Environment(UserSession.self) var session
     @State private var model: TimelineModel
-    @State private var priorityScore = 0
 
     init(summary: RoomListModel.Summary) {
         self.summary = summary
@@ -22,13 +22,15 @@ struct MountainCardListView: View {
             roomName: summary.name,
             isFavorite: summary.isFavorite,
             isDirect: summary.isDirect,
-            priorityScore: priorityScore,
+            priorityScore: session.roomList.priorityScores[summary.id] ?? 0,
             onSend: { text in Task { try? await model.send(text) } }
         )
         .task { try? await model.start() }
         // Keyed on the newest message's id, not `.count`: history pagination
         // prepends older messages without changing the last one.
-        .task(id: latestMessages.last?.id) { priorityScore = await summary.priorityScore(messages: allMessages) }
+        .task(id: latestMessages.last?.id) {
+            await session.roomList.updateScore(for: summary, messages: allMessages)
+        }
     }
 
     private var allMessages: [TimelineModel.Message] {

@@ -39,12 +39,12 @@ final class RoomListModel {
             var score = 0
 
             if unreadMentions > 0 {
-                score += 80 //getting directly mentioned is treated as a high priority thing
+                score += 40 //getting directly mentioned is treated as a high priority thing
                 print("[priorityScore] \(name): +80 for \(unreadMentions) unread mention(s) -> \(score)") // DEBUG/TUNING
             }
 
             if isFavorite {score += 30}
-            if isDirect {score += 30}
+            if isDirect {score += 10} else { score -= 10}
             if isLowPriority {score -= 60}
             print("[priorityScore] \(name): isFavorite=\(isFavorite) isDirect=\(isDirect) isLowPriority=\(isLowPriority) -> \(score)") // DEBUG: remove
 
@@ -57,7 +57,7 @@ final class RoomListModel {
 
             let response = try? await lmsession.respond(
                 to: """
-                Here is the contents of this Matrix room, over the last few messages. Analyzing only the messages that matter, disregarding old messages, you are going to score this conversation on a scale from 0-50, based on how "important" the latest message, and the messages that influence that one directly, are. Are they life threataning, something that requires you absolute attention right now, or something less important, interesting to follow along with, but not ground breaking.
+                Here is the contents of this Matrix room, over the last few messages. Analyzing only the messages that matter, disregarding old messages, you are going to score this conversation on a scale from 0-40, based on how "important" the latest message, and the messages that influence that one directly, are. Are they life threataning, something that requires you absolute attention right now, or something less important, interesting to follow along with, but not ground breaking.
 
                 \(transcript)
                 """,
@@ -75,6 +75,20 @@ final class RoomListModel {
     }
 
     private(set) var summaries: [Summary] = []
+
+    /// LLM priority scores keyed by room id, computed by whichever card is currently displaying that room, as to not spam llm calls
+    private(set) var priorityScores: [String: Int] = [:]
+
+    /// newest message id that has been scored
+    private var lastScoredMessageID: [String: String] = [:]
+
+    /// Recomputes a room's priority score, but only when its newest message has actually changed since we last scored it.
+    func updateScore(for summary: Summary, messages: [TimelineModel.Message]) async {
+        guard let newest = messages.last?.id, lastScoredMessageID[summary.id] != newest else { return }
+        
+        lastScoredMessageID[summary.id] = newest
+        priorityScores[summary.id] = await summary.priorityScore(messages: messages)
+    }
 
     private let service: RoomListService
     private var rooms: [Room] = []

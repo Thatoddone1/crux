@@ -16,9 +16,17 @@ struct CardDeck<Item: Identifiable, Card: View>: View {
     var collapsed: Bool = false
     @ViewBuilder let card: (Item) -> Card
 
-    @State private var focusedIndex = 0
+    /// Tracked by the item's own id, not a raw array position: if `items` reorders
+    /// (e.g. a background score finishes and re-sorts the deck) the same card stays
+    /// focused instead of the front slot silently showing a different room.
+    @State private var focusedID: Item.ID?
     /// Live finger movement during a drag; resets to 0 automatically on release.
     @GestureState private var dragTranslation: CGFloat = 0
+
+    private var focusedIndex: Int {
+        guard let focusedID, let index = items.firstIndex(where: { $0.id == focusedID }) else { return 0 }
+        return index
+    }
 
     var body: some View {
         // A continuous focus position: an integer at rest, fractional mid-drag,
@@ -68,8 +76,10 @@ struct CardDeck<Item: Identifiable, Card: View>: View {
     }
 
     private func snap(to index: Int) {
+        let clamped = min(max(index, 0), items.count - 1)
+        guard items.indices.contains(clamped) else { return }
         withAnimation(.spring) {
-            focusedIndex = min(max(index, 0), items.count - 1)
+            focusedID = items[clamped].id
         }
     }
 }
