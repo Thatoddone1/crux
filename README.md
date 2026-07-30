@@ -17,7 +17,7 @@ Firstly, I would like to thank those who worked on the [MatrixRustSDK](https://g
 
 Most of the views do not call anything in the SDK itself. There are "models" (RoomListModel, SpaceListModel, UserProfileModel, etc) that abstract the library for the views. The user session itself is represented by UserSession, accessible through the signed in state of the MatrixService. The session is stored (so it can be resumed when reopened) using the SessionStore, which stores the keys in the keychain and other information in the filesystem itself.
 
-The list of rooms (filterable) is represented by RoomListModel, which contains summaries (one per room), and inside those the SDK room object itself. The RoomDetailsModel contains more information about each room.
+The list of rooms (filterable) is represented by RoomListModel, which contains summaries (one per room), and inside those the SDK room object itself. The RoomDetailsModel is what the RoomView itself assembles and uses to get percise details about the room (and the timeline itself).
 
 Spaces are organized similarly, with SpaceListModel representing the list of spaces. It contains SpaceNodes, which is one entry in a space (either a room or another space).
 
