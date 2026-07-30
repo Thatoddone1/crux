@@ -4,20 +4,15 @@
 //
 
 import SwiftUI
-import MatrixRustSDK
 
 struct RoomView: View {
     let roomId: String
     @Environment(UserSession.self) private var session
 
-    @State private var name: String?
-    @State private var room: Room?
-    @State private var isDirect = false
-    @State private var model: TimelineModel?
+    @State private var details: RoomDetailsModel? //all details about the room
     @State private var errorMessage: String?
     @State private var profileTarget: ProfileTarget?
     @State private var showMemberMenu = false
-    @State private var members: [RoomMember] = []
     @State private var reportTarget: TimelineModel.Message?
 
     private struct ProfileTarget: Identifiable {
@@ -26,10 +21,10 @@ struct RoomView: View {
 
     var body: some View {
         Group {
-            if let model {
+            if let details {
                 ScrollView {
                     LazyVStack(spacing: 8) {
-                        ForEach(model.entries) { entry in
+                        ForEach(details.timeline.entries) { entry in
                             row(for: entry)
                         }
                     }
@@ -54,7 +49,7 @@ struct RoomView: View {
             ToolbarItem(placement: .principal) {
                 Button(action: openTitleAction) {
                     HStack(spacing: 4) {
-                        Text(name ?? "")
+                        Text(details?.name ?? "")
                             .font(.headline)
                             .foregroundStyle(.primary)
                         Image(systemName: "chevron.down")
@@ -69,13 +64,9 @@ struct RoomView: View {
         }
         .task {
             do {
-                let room = try session.room(id: roomId)
-                self.room = room
-                name = room.displayName() ?? room.id()
-                isDirect = await room.isDirect()
-                let model = TimelineModel(room: room)
-                self.model = model
-                try await model.start()
+                let details = try RoomDetailsModel(session: session, roomId: roomId)
+                self.details = details
+                await details.start()
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -93,8 +84,8 @@ struct RoomView: View {
 
     @ViewBuilder
     private func reportSheet(for message: TimelineModel.Message) -> some View {
-        if let model {
-            ReportMessageView(message: message, model: model)
+        if let details {
+            ReportMessageView(message: message, model: details.timeline)
         }
     }
 
@@ -102,8 +93,8 @@ struct RoomView: View {
     /// participant's profile directly for a DM, or a simple member picker
     /// for group rooms.
     private func openTitleAction() {
-        guard let room else { return }
-        if isDirect, let heroId = room.heroes().first?.userId {
+        guard let details else { return }
+        if details.isDirect, let heroId = details.directHeroId {
             profileTarget = ProfileTarget(id: heroId)
         } else {
             showMemberMenu = true
@@ -112,18 +103,18 @@ struct RoomView: View {
 
     @ViewBuilder
     private func profileSheet(for target: ProfileTarget) -> some View {
-        UserProfileView(userId: target.id, session: session, room: room)
+        UserProfileView(userId: target.id, session: session, room: details?.room)
     }
 
     @ViewBuilder
     private var memberMenu: some View {
         NavigationStack {
-            List(members, id: \.userId) { member in
+            List(details?.members ?? []) { member in
                 Button {
                     showMemberMenu = false
-                    profileTarget = ProfileTarget(id: member.userId)
+                    profileTarget = ProfileTarget(id: member.id)
                 } label: {
-                    Text(member.displayName ?? member.userId)
+                    Text(member.name)
                 }
             }
             .navigationTitle("Members")
@@ -133,12 +124,7 @@ struct RoomView: View {
                     Button("Done") { showMemberMenu = false }
                 }
             }
-            .task {
-                guard members.isEmpty, let room else { return }
-                if let iterator = try? await room.members() {
-                    members = iterator.nextChunk(chunkSize: 500) ?? []
-                }
-            }
+            .task { await details?.loadMembers() }
         }
     }
 
@@ -158,12 +144,12 @@ struct RoomView: View {
 
     private func send(_ draft: String) {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, let model else { return }
+        guard !text.isEmpty, let details else { return }
         errorMessage = nil
 
         Task {
             do {
-                try await model.send(text)
+                try await details.timeline.send(text)
             } catch {
                 errorMessage = error.localizedDescription
             }

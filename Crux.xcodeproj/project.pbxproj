@@ -29,7 +29,6 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-				Matrix/Rooms/RoomDetailsModel.swift,
 			);
 			target = 6ACF62A12FFD725500CE8E5B /* Crux */;
 		};

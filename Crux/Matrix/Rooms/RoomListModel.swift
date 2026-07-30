@@ -10,6 +10,8 @@ import FoundationModels
 /// up to date list of all the rooms for a given user (session)
 @Observable
 final class RoomListModel {
+    
+    //a single summary of a room (NOT THE same as RoomDetailsModel, which holds in depth details, this is just sort of an overview)
     struct Summary: Identifiable {
         let id: String
         let name: String
