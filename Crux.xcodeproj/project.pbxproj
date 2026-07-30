@@ -29,7 +29,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-				Matrix/RoomDetailsModel.swift,
+				Matrix/Rooms/RoomDetailsModel.swift,
 			);
 			target = 6ACF62A12FFD725500CE8E5B /* Crux */;
 		};
@@ -40,7 +40,7 @@
 			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
 			buildPhase = 6ACF62A02FFD725500CE8E5B /* Resources */;
 			membershipExceptions = (
-				Matrix/RoomDetailsModel.swift,
+				Matrix/Rooms/RoomDetailsModel.swift,
 			);
 		};
 /* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
@@ -53,7 +53,7 @@
 				6AEB5E953017D4400084E25C /* Exceptions for "Crux" folder in "Copy Bundle Resources" phase from "Crux" target */,
 			);
 			explicitFileTypes = {
-				Matrix/RoomDetailsModel.swift = sourcecode.swift;
+				Matrix/Rooms/RoomDetailsModel.swift = sourcecode.swift;
 			};
 			path = Crux;
 			sourceTree = "<group>";
