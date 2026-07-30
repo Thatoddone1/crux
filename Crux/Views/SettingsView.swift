@@ -43,6 +43,7 @@ struct SettingsView: View {
                     .foregroundStyle(.red)
                 }
                 Section("About") {
+                    NavigationLink("View Onboarding", destination: OnboardingView(showsLoginActions: false))
                     Text("Version: \(version) (\(buildNumber))")
                     Link("Reach out for support", destination: URL(string: "mailto:support@joshuarocks.me")!)
                     Text("Created by [Joshua K](https://joshuarocks.me) with ❤️")

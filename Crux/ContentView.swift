@@ -15,7 +15,7 @@ struct ContentView: View {
             case .restoring:
                 ProgressView()
             case .signedOut:
-                LoginView()
+                SignedOutView()
             case .signedIn(let session):
                 TabView {
                     Tab("Mountain", systemImage: "mountain.2") {
@@ -35,5 +35,17 @@ struct ContentView: View {
             }
         }
         .task { await matrix.restoreSession() }
-    }	
+    }
+}
+
+///what to show when signed out
+private struct SignedOutView: View {
+    @State private var showOnboarding = true
+
+    var body: some View {
+        LoginView()
+            .fullScreenCover(isPresented: $showOnboarding) {
+                OnboardingView()
+            }
+    }
 }

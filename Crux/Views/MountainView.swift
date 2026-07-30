@@ -19,6 +19,9 @@ struct MountainView: View {
     /// has scored high enough to land on the peak.
     @State private var expanded: Pile = .peak
 
+    /// Show the swipe-to-read hint until the user dismisses their first card.
+    @AppStorage("hasSeenSwipeHint") private var hasSeenSwipeHint = false
+
     /// Score at or above which a room is important enough to go to mountain
     private static let peakThreshold = 50
 
@@ -51,11 +54,20 @@ struct MountainView: View {
 
     private func deck(_ items: [RoomListModel.Summary]) -> some View {
         CardDeck(items: items, onDismiss: { summary in
+            hasSeenSwipeHint = true      // they just learned the gesture
             Task { await session.roomList.markRead(summary) }
         }) { summary in
             MountainCardListView(summary: summary)
         }
         .frame(maxHeight: .infinity)
+        .overlay(alignment: .bottom) {
+            if !hasSeenSwipeHint {
+                SwipeHint()
+                    .padding(.bottom, 16)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut, value: hasSeenSwipeHint)
         .transition(.opacity)
     }
 
@@ -109,6 +121,31 @@ struct MountainView: View {
         switch expanded {
         case .peak: return peakPile.isEmpty ? .slope : .peak
         case .slope: return slopePile.isEmpty ? .peak : .slope
+        }
+    }
+}
+
+/// A gentle first-run nudge teaching the swipe-right-to-mark-read gesture.
+private struct SwipeHint: View {
+    @State private var nudge = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "hand.draw")
+            Text("Swipe a card right to mark it read")
+                .font(.footnote.weight(.medium))
+            Image(systemName: "arrow.right")
+                .offset(x: nudge ? 5 : -3)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay(Capsule().stroke(.secondary.opacity(0.2)))
+        .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
+                nudge = true
+            }
         }
     }
 }

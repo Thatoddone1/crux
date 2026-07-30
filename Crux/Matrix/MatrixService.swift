@@ -23,6 +23,28 @@ enum MatrixConfiguration {
                                                        tosUri: nil,
                                                        policyUri: nil,
                                                        staticRegistrations: [:])
+
+    /// A few public homeservers to suggest to newcomers who don't have an account yet.
+    /// These are just examples — the directory link in the UI has the current full list.
+    static let exampleServers: [ExampleServer] = [
+        ExampleServer(name: "matrix.org",
+                      blurb: "Run by the non-profit Matrix.org Foundation. The most popular starting point and a safe default.",
+                      homepage: "https://matrix.org"),
+        ExampleServer(name: "tchncs.de",
+                      blurb: "A large, long-running community server hosting thousands of public rooms.",
+                      homepage: "https://tchncs.de"),
+        ExampleServer(name: "glasgow.social",
+                      blurb: "A smaller community server — an example of the many communities you can call home.",
+                      homepage: "https://glasgow.social"),
+    ]
+}
+
+/// A public homeserver we can suggest, with a short human explanation and a link to learn more.
+struct ExampleServer: Identifiable, Hashable {
+    var id: String { name }
+    let name: String
+    let blurb: String
+    let homepage: String
 }
 
 /// The login methods a homeserver advertises.
