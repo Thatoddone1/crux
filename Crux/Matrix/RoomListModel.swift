@@ -63,8 +63,47 @@ final class RoomListModel {
 
             let response = try? await lmsession.respond(
                 to: """
-                Here is the contents of this Matrix room, over the last few messages. Analyzing only the messages that matter, disregarding old messages, you are going to score this conversation on a scale from 0-40, based on how "important" the latest message, and the messages that influence that one directly, are. Are they life threataning, something that requires you absolute attention right now, or something less important, interesting to follow along with, but not ground breaking.
+                You are an expert inbox triage assistant for a messaging client. Your job is to read a chat log (which includes timestamps) and assign a Priority Score from 0 to 40 based ONLY on the urgency of the MOST RECENT unread state.
 
+                You will receive up to the last 10 messages. The older messages are strictly provided for context to help you understand the newest ones. 
+
+                STEP 1: TIME & CONTEXT ANALYSIS
+                Before scoring, mentally evaluate:
+                - Recency Bias: Focus your score on the last 1 to 3 messages. If there was a crisis three days ago but the latest message is "All good now," the current priority is low. 
+                - Contextual Meaning: A single word like "Okay" or "Done" is usually low priority. However, if the prior message was "I'm outside, come down now!", an "Okay" means an event is actively happening.
+                - Actionability: Does the *most recent* message require the user to drop what they are doing and reply or act today?
+
+                STEP 2: FIND THE CLOSEST ANCHOR SCORE
+                Match the current state of the conversation to one of these strict anchor points. Adjust slightly up or down, but stay close to these baselines:
+
+                Anchor 0: Resolved or Pure Noise
+                - The conversation is resolved (e.g., "Thanks!", "Done", "See ya").
+                - Emojis, reactions, or automated alerts.
+
+                Anchor 10: Casual Banter / FYI
+                - Greetings ("Hey", "Morning!").
+                - Statements sharing info without needing a reply.
+                - Memes or casual links.
+
+                Anchor 20: Standard Conversation (Non-Urgent)
+                - Normal chit-chat.
+                - Long-term planning ("Let's get lunch next week").
+                - Questions that are not time-sensitive.
+
+                Anchor 30: Important & Actionable
+                - Direct questions directed at the user that need a response today.
+                - Work-related updates or project questions.
+                - Short-term logistics ("Where are we meeting tonight?", "Are you on your way?").
+
+                Anchor 40: Urgent / Emergency
+                - Time-sensitive crises or emergencies happening right now.
+                - Explicit demands for immediate attention ("Call me NOW", "Server is down").
+                - Critical, last-minute cancellations or schedule changes.
+
+                STEP 3: ASSIGN THE SCORE
+                Based on the MOST RECENT context, provide the final integer score (0-40). 
+
+                CONVERSATION TRANSCRIPT:
                 \(transcript)
                 """,
                 generating: Int.self
