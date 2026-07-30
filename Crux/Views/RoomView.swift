@@ -32,10 +32,19 @@ struct RoomView: View {
                 }
                 .defaultScrollAnchor(.bottom)
                 .onLongPressGesture(perform: openTitleAction)
-                .safeAreaInset(edge: .bottom) { Composer(
-                    onSend: send,
-                    errorMessage: errorMessage
-                ) }
+                .safeAreaInset(edge: .bottom) {
+                    if (details.canSendMessage()) {
+                        Composer(
+                            onSend: send,
+                            errorMessage: errorMessage
+                        )
+                    } else {
+                        Text("You don't have permission to send here")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding()
+                    }
+                }
             } else if let errorMessage {
                 ContentUnavailableView("Couldn't Open Room",
                                        systemImage: "exclamationmark.triangle",
