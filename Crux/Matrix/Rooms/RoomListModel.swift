@@ -48,7 +48,7 @@ final class RoomListModel {
 
             if unreadMentions > 0 {
                 score += 40 //getting directly mentioned is treated as a high priority thing
-                print("[priorityScore] \(name): +80 for \(unreadMentions) unread mention(s) -> \(score)") // DEBUG/TUNING
+                print("[priorityScore] \(name): +40 for \(unreadMentions) unread mention(s) -> \(score)") // DEBUG/TUNING
             }
 
             if isFavorite {score += 30}
