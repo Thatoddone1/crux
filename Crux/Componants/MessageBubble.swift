@@ -11,16 +11,9 @@ import SwiftUI
 
 struct MessageBubble: View {
     let message: TimelineModel.Message
-    let onReport: () -> Void
-    let onViewProfile: () -> Void
-
-    init(message: TimelineModel.Message,
-         onReport: @escaping () -> Void = {},
-         onViewProfile: @escaping () -> Void = {}) {
-        self.message = message
-        self.onReport = onReport
-        self.onViewProfile = onViewProfile
-    }
+    var onReport: (() -> Void)? = nil
+    var onViewProfile: (() -> Void)? = nil
+    var onDelete: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -62,9 +55,16 @@ struct MessageBubble: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contextMenu {
-            Button("View Profile", systemImage: "person.crop.circle", action: onViewProfile)
-            if !message.isOwn {
-                Button("Report Message", systemImage: "flag", role: .destructive, action: onReport)
+            if let delete = onDelete {
+                Button("Delete Message", systemImage: "delete.left", role: .destructive, action: delete)
+            }
+            if let profile = onViewProfile {
+                Button("View Profile", systemImage: "person.crop.circle", action: profile)
+            }
+            if let report = onReport {
+                if !message.isOwn {
+                    Button("Report Message", systemImage: "flag", role: .destructive, action: report)
+                }
             }
         }
     }
@@ -74,19 +74,24 @@ struct MessageBubble: View {
 //some sample messages
 #Preview(traits: .sizeThatFitsLayout) {
     VStack(spacing: 12) {
-        MessageBubble(message: .sample(sender: "PersonA",
-            body: "This is a wonderful test message. The point of this is to test Crux."))
+        MessageBubble(
+            message: .sample(sender: "PersonA", body: "This is a wonderful test message. The point of this is to test Crux.")
+        )
 
         MessageBubble(message: .sample(sender: "PersonB", body: "This message was edited.",
             isOwn: true, isEdited: true,
             reactions: [.init(key: "👍", count: 2, includesMe: true),
-                        .init(key: "🎉", count: 1, includesMe: false)]))
+                        .init(key: "🎉", count: 1, includesMe: false)]),
+                      onReport: {}, onViewProfile:{}, onDelete: {}
+        )
 
         MessageBubble(message: .sample(sender: "PersonB", body: "This one hasn't sent yet.",
-            isOwn: true, sendState: .sending))
+            isOwn: true, sendState: .sending),
+                      onReport: {}, onViewProfile:{})
 
         MessageBubble(message: .sample(sender: "PersonB", body: "This one was rejected by the server.",
-            isOwn: true, sendState: .failed))
+            isOwn: true, sendState: .failed),
+                      onReport: {}, onViewProfile:{})
     }
     .padding()
 }

@@ -143,11 +143,29 @@ struct RoomView: View {
         case .message(let message):
             MessageBubble(message: message,
                           onReport: { reportTarget = message },
-                          onViewProfile: { profileTarget = ProfileTarget(id: message.senderId) })
+                          onViewProfile: { profileTarget = ProfileTarget(id: message.senderId) },
+                          onDelete: deleteAction(for: message)
+            )
         case .dayDivider(_, let date):
             Text(date, style: .date)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    ///if user has permissions return the deletion closure
+    private func deleteAction(for message: TimelineModel.Message) -> (() -> Void)? {
+        guard let details else { return nil }
+        let canRedact = message.isOwn ? details.canRedactOwn() : details.canRedactOther()
+        guard canRedact else { return nil }
+        return {
+            Task {
+                do {
+                    try await details.timeline.delete(message)
+                } catch {
+                    errorMessage = error.localizedDescription
+                }
+            }
         }
     }
 
