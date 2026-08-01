@@ -14,7 +14,11 @@ struct RoomView: View {
     @State private var profileTarget: ProfileTarget?
     @State private var showMemberMenu = false
     @State private var reportTarget: TimelineModel.Message?
-
+    @State private var editTarget: TimelineModel.Message?
+    @State private var editContent: String = ""
+    @State private var showEdit: Bool = false
+    
+    
     private struct ProfileTarget: Identifiable {
         let id: String
     }
@@ -89,6 +93,23 @@ struct RoomView: View {
         .sheet(item: $reportTarget) { message in
             reportSheet(for: message)
         }
+        .alert("Edit Message", isPresented: $showEdit) {
+            TextField("Edited message", text: $editContent)
+            
+            if let editTarget {
+                Button("Save") {
+                    Task {try await details?.timeline.edit(editTarget, to: editContent)}
+                }
+            }
+            
+            Button("Cancel", role: .cancel) {
+                editTarget = nil
+                showEdit = false
+                editContent = ""
+            }
+        } message: {
+            Text("Edit the contents of this message")
+        }
     }
 
     @ViewBuilder
@@ -144,7 +165,8 @@ struct RoomView: View {
             MessageBubble(message: message,
                           onReport: { reportTarget = message },
                           onViewProfile: { profileTarget = ProfileTarget(id: message.senderId) },
-                          onDelete: deleteAction(for: message)
+                          onDelete: deleteAction(for: message),
+                          onEdit: editAction(for: message)
             )
         case .dayDivider(_, let date):
             Text(date, style: .date)
@@ -168,7 +190,20 @@ struct RoomView: View {
             }
         }
     }
-
+    
+    private func editAction(for message: TimelineModel.Message) -> (() -> Void)? {
+        guard let details else {return nil}
+        if message.isOwn {
+            return {
+                editTarget = message
+                editContent = message.body
+                showEdit = true
+            }
+        } else {
+            return nil
+        }
+    }
+    
     private func send(_ draft: String) {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, let details else { return }

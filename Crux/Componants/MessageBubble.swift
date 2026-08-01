@@ -14,6 +14,7 @@ struct MessageBubble: View {
     var onReport: (() -> Void)? = nil
     var onViewProfile: (() -> Void)? = nil
     var onDelete: (() -> Void)? = nil
+    var onEdit: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -55,15 +56,18 @@ struct MessageBubble: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contextMenu {
-            if let delete = onDelete {
-                Button("Delete Message", systemImage: "delete.left", role: .destructive, action: delete)
+            if let onDelete {
+                Button("Delete Message", systemImage: "delete.left", role: .destructive, action: onDelete)
             }
-            if let profile = onViewProfile {
-                Button("View Profile", systemImage: "person.crop.circle", action: profile)
+            if let onEdit {
+                Button("Edit Message", systemImage: "pencil", action: onEdit)
             }
-            if let report = onReport {
+            if let onViewProfile {
+                Button("View Profile", systemImage: "person.crop.circle", action: onViewProfile)
+            }
+            if let onReport {
                 if !message.isOwn {
-                    Button("Report Message", systemImage: "flag", role: .destructive, action: report)
+                    Button("Report Message", systemImage: "flag", role: .destructive, action: onReport)
                 }
             }
         }
