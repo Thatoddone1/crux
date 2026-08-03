@@ -102,6 +102,10 @@ struct MessageBubble: View {
                     Button("Report Message", systemImage: "flag", role: .destructive, action: onReport)
                 }
             }
+            
+            Button("Copy Message", systemImage: "document.on.document") {
+                UIPasteboard.general.string = message.body
+            }
         }
     }
 }
