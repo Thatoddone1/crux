@@ -36,6 +36,11 @@ struct RoomView: View {
                                             try? await details.timeline.loadMore()
                                         }
                                     }
+                                    if entry.id == details.timeline.entries.last?.id {
+                                        Task {
+                                            try? await details.timeline.markAsRead()
+                                        }
+                                    }
                                 }
                         }
                     }
