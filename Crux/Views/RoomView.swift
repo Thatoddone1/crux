@@ -89,7 +89,7 @@ struct RoomView: View {
         }
         .task {
             do {
-                let details = try RoomDetailsModel(session: session, roomId: roomId)
+                let details = try session.roomDetails(for: roomId)
                 self.details = details
                 await details.start()
             } catch {

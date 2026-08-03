@@ -22,44 +22,71 @@ struct MountainView: View {
     /// Show the swipe-to-read hint until the user dismisses their first card.
     @AppStorage("hasSeenSwipeHint") private var hasSeenSwipeHint = false
 
-    /// Score at or above which a room is important enough to go to mountain
-    private static let peakThreshold = 50
+    /// Opening a room pushes onto this stack's own nav, so "back" returns here.
+    @State private var path = NavigationPath()
 
-    private var pile: [RoomListModel.Summary] {
-        session.roomList.summaries.filter(\.hasUnread)
-    }
+    /// The scored, frozen deck. Owned here so it survives tab switches without
+    /// re-sorting — only a fresh launch starts it over.
+    @State private var model = MountainModel()
+
+    private var unread: [RoomListModel.Summary] { session.roomList.summaries.filter(\.hasUnread) }
+    private var peakPile: [RoomListModel.Summary] { model.peak }
+    private var slopePile: [RoomListModel.Summary] { model.slope }
 
     var body: some View {
-        Group {
-            if pile.isEmpty {
-                ContentUnavailableView("All caught up",
-                                       systemImage: "checkmark.circle",
-                                       description: Text("Unread rooms stack up here."))
-            } else {
-                VStack(spacing: 0) {
-                    header(.peak, title: "Peak", icon: "mountain.2.fill", items: peakPile)
-                    if effectiveExpanded == .peak { deck(peakPile) }
-
-                    header(.slope, title: "Slope", icon: "arrow.down.forward", items: slopePile)
-                    if effectiveExpanded == .slope { deck(slopePile) }
-
-                    // Muted pile disabled for now, I'll add it in later
+        NavigationStack(path: $path) {
+            content
+                .overlay(SettingsButton(), alignment: .topTrailing)
+                .sensoryFeedback(.selection, trigger: expanded)
+                .navigationDestination(for: String.self) { roomId in
+                    RoomView(roomId: roomId)
                 }
+                .task {
+                    // Wait for room info, or the first sort freezes an empty deck.
+                    await session.roomList.awaitRoomsReady()
+                    await model.loadIfNeeded(unread: unread)
+                }
+                .onChange(of: unread.map(\.id)) { _, _ in
+                    model.syncNewCards(unread: unread)   // newly-unread rooms trickle in, scored one by one
+                }
+        }
+    }
+
+    @ViewBuilder private var content: some View {
+        switch model.phase {
+        case .idle, .loading:
+            DeckLoadingView()
+        case .ready where peakPile.isEmpty && slopePile.isEmpty:
+            ContentUnavailableView("All caught up",
+                                   systemImage: "checkmark.circle",
+                                   description: Text("Unread rooms stack up here."))
+        case .ready:
+            VStack(spacing: 0) {
+                header(.peak, title: "Peak", icon: "mountain.2.fill", items: peakPile)
+                if effectiveExpanded == .peak { deck(peakPile) }
+
+                header(.slope, title: "Slope", icon: "arrow.down.forward", items: slopePile)
+                if effectiveExpanded == .slope { deck(slopePile) }
+
+                // Muted pile disabled for now, I'll add it in later
             }
         }
-        .overlay(SettingsButton(), alignment: .topTrailing)
     }
 
     // MARK: - Pieces
 
     private func deck(_ items: [RoomListModel.Summary]) -> some View {
-        CardDeck(items: items, onDismiss: { summary in
+        CardStack(items: items, onDismiss: { summary in
             hasSeenSwipeHint = true      // they just learned the gesture
-            Task { await session.roomList.markRead(summary) }
-        }) { summary in
-            MountainCardListView(summary: summary)
+            model.dismiss(summary)       // drop from the pile...
+            Task { await session.roomList.markRead(summary) }   // ...and mark it read
+        }, onOpen: { summary in
+            path.append(summary.id)
+        }) { summary, isFocused, onOpen in
+            MountainCardCell(summary: summary, score: model.scores[summary.id] ?? 0,
+                             isFocused: isFocused, onOpen: onOpen)
         }
-        .frame(maxHeight: .infinity)
+        .frame(maxHeight: .infinity, alignment: .top)
         .overlay(alignment: .bottom) {
             if !hasSeenSwipeHint {
                 SwipeHint()
@@ -97,30 +124,48 @@ struct MountainView: View {
         }
         .buttonStyle(.plain)
         .disabled(items.isEmpty)
+        // Opaque bar so peeking cards slide cleanly underneath, keeping the
+        // title readable; lifted above the deck's overflow.
+        .background(.ultraThinMaterial)
+        .zIndex(1)
     }
 
     // MARK: - Buckets
-
-    
-    private var peakPile: [RoomListModel.Summary] {
-        pile.filter { score(for: $0) >= Self.peakThreshold }
-            .sorted { score(for: $0) > score(for: $1) }
-    }
-
-    private var slopePile: [RoomListModel.Summary] {
-        pile.filter { score(for: $0) < Self.peakThreshold }
-            .sorted { score(for: $0) > score(for: $1) }
-    }
-
-    private func score(for summary: RoomListModel.Summary) -> Int {
-        session.roomList.priorityScores[summary.id] ?? 0
-    }
 
     /// Never leaves an empty pile open (nothing to show): falls back to the other one so the screen is always filled.
     private var effectiveExpanded: Pile {
         switch expanded {
         case .peak: return peakPile.isEmpty ? .slope : .peak
         case .slope: return slopePile.isEmpty ? .peak : .slope
+        }
+    }
+}
+
+/// The split-second sort screen: a pulsing peak, a spinner, and status text that
+/// cycles so the wait reads as deliberate work, not a hang.
+private struct DeckLoadingView: View {
+    private static let phrases = ["Sorting your mountain…", "Reading the rooms…", "Ranking your peaks…"]
+    @State private var index = 0
+
+    var body: some View {
+        VStack(spacing: 18) {
+            Image(systemName: "mountain.2.fill")
+                .font(.system(size: 44))
+                .foregroundStyle(.tint)
+                .symbolEffect(.pulse)
+            ProgressView()
+                .controlSize(.large)
+            Text(Self.phrases[index])
+                .font(.callout.weight(.medium))
+                .foregroundStyle(.secondary)
+                .contentTransition(.opacity)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1.1))
+                withAnimation(.easeInOut) { index = (index + 1) % Self.phrases.count }
+            }
         }
     }
 }

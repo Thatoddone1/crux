@@ -5,7 +5,6 @@
 
 import Foundation
 import MatrixRustSDK
-import FoundationModels
 
 /// up to date list of all the rooms for a given user (session)
 @Observable
@@ -42,99 +41,16 @@ final class RoomListModel {
         var hasUnread: Bool { unreadMessages > 0 || isMarkedUnread }
 
         var isInvite: Bool { membership == .invited }
-
-        func priorityScore(messages: [TimelineModel.Message]) async -> Int {
-            var score = 0
-
-            if unreadMentions > 0 {
-                score += 40 //getting directly mentioned is treated as a high priority thing
-                print("[priorityScore] \(name): +40 for \(unreadMentions) unread mention(s) -> \(score)") // DEBUG/TUNING
-            }
-
-            if isFavorite {score += 30}
-            if isDirect {score += 10} else { score -= 10}
-            if isLowPriority {score -= 60}
-            print("[priorityScore] \(name): isFavorite=\(isFavorite) isDirect=\(isDirect) isLowPriority=\(isLowPriority) -> \(score)") // DEBUG: remove
-
-            let transcript = messages.suffix(10)
-                .map { "\($0.sender) (\($0.date.formatted(date: .abbreviated, time: .shortened))): \($0.body)" }
-                .joined(separator: "\n")
-            print("[priorityScore] \(name): transcript fed to LLM:\n\(transcript)") // DEBUG: remove
-
-            let lmsession = LanguageModelSession()
-
-            let response = try? await lmsession.respond(
-                to: """
-                You are an expert inbox triage assistant for a messaging client. Your job is to read a chat log (which includes timestamps) and assign a Priority Score from 0 to 40 based ONLY on the urgency of the MOST RECENT unread state.
-
-                You will receive up to the last 10 messages. The older messages are strictly provided for context to help you understand the newest ones. 
-
-                STEP 1: TIME & CONTEXT ANALYSIS
-                Before scoring, mentally evaluate:
-                - Recency Bias: Focus your score on the last 1 to 3 messages. If there was a crisis three days ago but the latest message is "All good now," the current priority is low. 
-                - Contextual Meaning: A single word like "Okay" or "Done" is usually low priority. However, if the prior message was "I'm outside, come down now!", an "Okay" means an event is actively happening.
-                - Actionability: Does the *most recent* message require the user to drop what they are doing and reply or act today?
-
-                STEP 2: FIND THE CLOSEST ANCHOR SCORE
-                Match the current state of the conversation to one of these strict anchor points. Adjust slightly up or down, but stay close to these baselines:
-
-                Anchor 0: Resolved or Pure Noise
-                - The conversation is resolved (e.g., "Thanks!", "Done", "See ya").
-                - Emojis, reactions, or automated alerts.
-
-                Anchor 10: Casual Banter / FYI
-                - Greetings ("Hey", "Morning!").
-                - Statements sharing info without needing a reply.
-                - Memes or casual links.
-
-                Anchor 20: Standard Conversation (Non-Urgent)
-                - Normal chit-chat.
-                - Long-term planning ("Let's get lunch next week").
-                - Questions that are not time-sensitive.
-
-                Anchor 30: Important & Actionable
-                - Direct questions directed at the user that need a response today.
-                - Work-related updates or project questions.
-                - Short-term logistics ("Where are we meeting tonight?", "Are you on your way?").
-
-                Anchor 40: Urgent / Emergency
-                - Time-sensitive crises or emergencies happening right now.
-                - Explicit demands for immediate attention ("Call me NOW", "Server is down").
-                - Critical, last-minute cancellations or schedule changes.
-
-                STEP 3: ASSIGN THE SCORE
-                Based on the MOST RECENT context, provide the final integer score (0-40). 
-
-                CONVERSATION TRANSCRIPT:
-                \(transcript)
-                """,
-                generating: Int.self
-            )
-            print("[priorityScore] \(name): LLM response=\(response?.content.description ?? "nil")") // DEBUG/TUNING
-
-            score += response?.content ?? 0
-
-            let clamped = min(max(score, 0), 100)
-            print("[priorityScore] \(name): final -> \(score) (clamped \(clamped))") // DEBUG/TUNING
-
-            return clamped
-        }
     }
 
     private(set) var summaries: [Summary] = []
 
-    /// LLM priority scores keyed by room id, computed by whichever card is currently displaying that room, as to not spam llm calls
-    private(set) var priorityScores: [String: Int] = [:]
-
-    /// newest message id that has been scored
-    private var lastScoredMessageID: [String: String] = [:]
-
-    /// Recomputes a room's priority score, but only when its newest message has actually changed since we last scored it.
-    func updateScore(for summary: Summary, messages: [TimelineModel.Message]) async {
-        guard let newest = messages.last?.id, lastScoredMessageID[summary.id] != newest else { return }
-        
-        lastScoredMessageID[summary.id] = newest
-        priorityScores[summary.id] = await summary.priorityScore(messages: messages)
+    @MainActor
+    func awaitRoomsReady() async {
+        for _ in 0..<30 {
+            if !rooms.isEmpty && roomInfo.count >= rooms.count { return }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
     }
 
     /// Marks a room read, clearing both its unread receipts and any manual unread flag.

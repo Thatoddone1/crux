@@ -28,6 +28,9 @@ final class UserSession {
     private let syncService: SyncService
     private let roomListService: RoomListService
 
+    ///cache the room details so it is not constatly remade (for rooms and mountain cards). Maybe a bit better for SDK connections and memory
+    private var roomDetailsCache: [String: RoomDetailsModel] = [:]
+
     init(client: Client) async throws {
         self.client = client
         userId = try client.userId()
@@ -57,6 +60,14 @@ final class UserSession {
 
     func room(id: String) throws -> Room {
         try roomListService.room(roomId: id)
+    }
+
+    
+    func roomDetails(for roomId: String) throws -> RoomDetailsModel {
+        if let existing = roomDetailsCache[roomId] { return existing }
+        let details = try RoomDetailsModel(session: self, roomId: roomId)
+        roomDetailsCache[roomId] = details
+        return details
     }
 
     /// Leaves a room or space; declines the invite if you're only invited.
