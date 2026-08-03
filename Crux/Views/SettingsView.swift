@@ -46,7 +46,7 @@ struct SettingsView: View {
                     NavigationLink("View Onboarding", destination: OnboardingView(showsLoginActions: false))
                     Text("Version: \(version) (\(buildNumber))")
                     Link("Reach out for support", destination: URL(string: "mailto:support@joshuarocks.me")!)
-                    Text("Created by [Joshua K](https://joshuarocks.me) with ❤️")
+                    Text("Created by [Joshua Kellman](https://joshuarocks.me)")
                     Text("See the source code on [GitHub](https://github.com/Thatoddone1/crux)")
                 }
                 Section("Legal") {

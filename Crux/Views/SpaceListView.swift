@@ -53,6 +53,10 @@ struct SpaceListView: View {
                 }
             }
         }
+        .overlay (
+            SettingsButton(),
+            alignment: .topTrailing
+        )	
     }
 }
 
