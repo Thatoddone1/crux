@@ -19,13 +19,10 @@ struct CardStack<Item: Identifiable, Card: View>: View {
     /// The centred card, tracked by id so an appended card can't shift which one
     /// you're looking at.
     @State private var focusedID: Item.ID?
-    /// Live vertical paging drag.
     @State private var dragY: CGFloat = 0
-    /// Live rightward dismiss drag (centred card only).
     @State private var dragX: CGFloat = 0
     /// Which axis this drag locked onto, decided from its first movement.
     @State private var axis: Axis?
-    /// The card currently flying off after a dismiss.
     @State private var dismissingID: Item.ID?
     /// True while the dismiss drag is past threshold (drives one haptic).
     @State private var armedToDismiss = false
@@ -82,8 +79,15 @@ struct CardStack<Item: Identifiable, Card: View>: View {
                 .offset(x: dx)
                 .geometryGroup()   // isolate the swipe transform from the glass
         }
-        // Neighbours only fade back — no scale, which glitched as cards of
-        // different heights grew/shrank on paging.
+        .overlay(alignment: .trailing) {
+            if isFocused, onDismiss != nil, !dismissing, dx <= 1 {
+                Image(systemName: "chevron.compact.right")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(.secondary.opacity(0.25))
+                    .padding(.trailing, 22)
+                    .allowsHitTesting(false)
+            }
+        }
         .opacity(isFocused ? 1 : Stack.neighbourOpacity)
         .offset(y: dy)
         .zIndex(dismissing ? 2 : (isFocused ? 1 : 0))
@@ -183,7 +187,7 @@ private extension Array {
 /// The deck's feel knobs. Non-generic + `nonisolated` so they're usable from
 /// the generic `CardStack` without each instantiation re-specializing them.
 private nonisolated enum Stack {
-    static let stepFraction: CGFloat = 0.72    // centre-to-centre gap, as a share of height (keeps cards clear of each other)
+    static let stepFraction: CGFloat = 0.85    // centre-to-centre gap, as a share of height
     static let windowRadius = 2                // how many neighbours each side to mount
     static let neighbourOpacity: CGFloat = 0.5 // peeking cards' opacity
     static let pageThreshold: CGFloat = 60     // projected travel (pt) to turn a page
@@ -211,9 +215,12 @@ private let stackDemos = [
 
 #Preview {
     CardStack(items: stackDemos, onDismiss: { _ in }, onOpen: { _ in }) { room, isFocused, onOpen in
-        MountainCard(messages: room.messages, roomName: room.name,
-                     isFavorite: false, priorityScore: 0, isFocused: isFocused,
-                     onSend: { _ in }, onOpen: onOpen)
+        VStack(alignment: .leading, spacing: 8) {
+            MountainCardHeader(roomName: room.name, avatarUrl: nil, unreadCount: 0, isFavorite: false,
+                               isDirect: true, isLowPriority: false, isMuted: false, isMentioned: false,
+                               score: 0, breakdown: nil, isFocused: isFocused, onOpen: onOpen)
+            MountainCard(messages: room.messages, isFocused: isFocused, onSend: { _ in })
+        }
     }
 }
 #endif

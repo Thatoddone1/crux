@@ -5,27 +5,41 @@
 
 import SwiftUI
 
-/// Connects one room summary to its shared `RoomDetailsModel` and feeds it to `MountainCard`.
+/// Connects one room summary to its shared `RoomDetailsModel` and feeds it to
+/// `MountainCardHeader` + `MountainCard`.
 struct MountainCardCell: View {
     let summary: RoomListModel.Summary
     var score: Int = 0
+    var breakdown: MountainModel.ScoreBreakdown? = nil
     var isFocused: Bool = true
     var onOpen: (() -> Void)? = nil
     @Environment(UserSession.self) var session
     @State private var details: RoomDetailsModel?
 
     var body: some View {
-        MountainCard(
-            messages: latestMessages,
-            roomName: summary.name,
-            isFavorite: summary.isFavorite,
-            priorityScore: score,
-            isFocused: isFocused,
-            canSend: canSend,
-            onSend: { text in Task { try? await details?.timeline.send(text) } },
-            onReact: { message, key in Task { try? await details?.timeline.toggleReaction(key, on: message) } },
-            onOpen: onOpen
-        )
+        VStack(alignment: .leading, spacing: 8) {
+            MountainCardHeader(
+                roomName: summary.name,
+                avatarUrl: summary.avatarUrl,
+                unreadCount: summary.unreadMessages,
+                isFavorite: summary.isFavorite,
+                isDirect: summary.isDirect,
+                isLowPriority: summary.isLowPriority,
+                isMuted: summary.isMuted,
+                isMentioned: summary.unreadMentions > 0,
+                score: score,
+                breakdown: breakdown,
+                isFocused: isFocused,
+                onOpen: onOpen
+            )
+            MountainCard(
+                messages: latestMessages,
+                isFocused: isFocused,
+                canSend: canSend,
+                onSend: { text in Task { try? await details?.timeline.send(text) } },
+                onReact: { message, key in Task { try? await details?.timeline.toggleReaction(key, on: message) } }
+            )
+        }
         .task {
             guard let details = try? session.roomDetails(for: summary.id) else { return }
             self.details = details

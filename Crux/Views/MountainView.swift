@@ -25,11 +25,10 @@ struct MountainView: View {
     /// Opening a room pushes onto this stack's own nav, so "back" returns here.
     @State private var path = NavigationPath()
 
-    /// The scored, frozen deck. Owned here so it survives tab switches without
-    /// re-sorting — only a fresh launch starts it over.
-    @State private var model = MountainModel()
+    
+    private var model: MountainModel { session.mountain }
 
-    private var unread: [RoomListModel.Summary] { session.roomList.summaries.filter(\.hasUnread) }
+    private var unread: [RoomListModel.Summary] { session.roomList.unread }
     private var peakPile: [RoomListModel.Summary] { model.peak }
     private var slopePile: [RoomListModel.Summary] { model.slope }
 
@@ -83,7 +82,8 @@ struct MountainView: View {
         }, onOpen: { summary in
             path.append(summary.id)
         }) { summary, isFocused, onOpen in
-            MountainCardCell(summary: summary, score: model.scores[summary.id] ?? 0,
+            MountainCardCell(summary: summary, score: model.score(for: summary.id),
+                             breakdown: model.breakdowns[summary.id],
                              isFocused: isFocused, onOpen: onOpen)
         }
         .frame(maxHeight: .infinity, alignment: .top)

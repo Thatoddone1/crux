@@ -19,6 +19,7 @@ final class UserSession {
     let roomList: RoomListModel
     let spaces: SpaceListModel
     let verification: VerificationModel
+    let mountain = MountainModel()
 
     /// The signed-in user's own display name, for menus etc.
     private(set) var displayName: String?

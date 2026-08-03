@@ -1,0 +1,227 @@
+//
+//  MountainCardHeader.swift
+//  Crux
+//
+
+import SwiftUI
+
+/// The glass pill that floats above a `MountainCard`: avatar, room name, and a
+/// row of chips that show why the deck sorted it here. Tapping the name opens
+/// the room; tapping the score explains it.
+struct MountainCardHeader: View {
+    let roomName: String
+    let avatarUrl: String?
+    let unreadCount: Int
+    let isFavorite: Bool
+    let isDirect: Bool
+    let isLowPriority: Bool
+    let isMuted: Bool
+    let isMentioned: Bool
+    let score: Int
+    let breakdown: MountainModel.ScoreBreakdown?
+    var isFocused: Bool = true
+    var onOpen: (() -> Void)? = nil
+
+    private var shape: some Shape { .rect(cornerRadius: 20) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                RoomAvatarView(avatarUrl: avatarUrl, unreadCount: unreadCount)
+                Text(roomName)
+                    .font(.title3.weight(.bold))
+                    .lineLimit(1)
+                if onOpen != nil {
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            HStack(spacing: 6) {
+                if isMentioned { Chip(icon: "at", label: "Mentioned", color: .red) }
+                if isFavorite { Chip(icon: "star.fill", label: "Favorite", color: .yellow) }
+                if isDirect { Chip(icon: "person.fill", label: "Direct", color: .blue) }
+                else { Chip(icon: "person.2.fill", label: "Group", color: .purple) }
+                if isLowPriority { Chip(icon: "arrow.down.circle.fill", label: "Low Priority", color: .gray) }
+                if isMuted { Chip(icon: "bell.slash.fill", label: "Muted", color: .secondary) }
+                Spacer()
+                ScoreChip(score: score, breakdown: breakdown, isInteractive: isFocused)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 12)
+        .glassEffect(isFocused ? .regular.interactive() : .regular, in: shape)
+        .padding(.horizontal)   // matches MountainCard's outer padding, so widths line up
+        .contentShape(.rect)
+        .onTapGesture { onOpen?() }
+    }
+}
+
+/// The score badge. Only the focused card's is tappable — a peeking neighbour
+/// is partly offscreen, so its popover would anchor somewhere wrong.
+private struct ScoreChip: View {
+    let score: Int
+    let breakdown: MountainModel.ScoreBreakdown?
+    let isInteractive: Bool
+    @State private var showBreakdown = false
+
+    var body: some View {
+        Group {
+            if isInteractive, let breakdown {
+                Button { showBreakdown = true } label: { label }
+                    .buttonStyle(.plain)
+                    .popover(isPresented: $showBreakdown, arrowEdge: .top) {
+                        ScoreBreakdownView(breakdown: breakdown)
+                            .presentationCompactAdaptation(.popover)
+                    }
+            } else {
+                label
+            }
+        }
+    }
+
+    private var label: some View {
+        HStack(spacing: 3) {
+            Text(score.description).fontWeight(.bold)
+            Text("/100").foregroundStyle(.secondary)
+            if isInteractive {
+                Image(systemName: "info.circle").font(.caption2)
+            }
+        }
+        .font(.caption)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .foregroundStyle(color)
+        .background(color.opacity(0.18), in: .capsule)
+    }
+
+    /// Bands off the actual peak/slope cutoff, so the color says roughly where
+    /// a card landed.
+    private var color: Color {
+        switch score {
+        case 70...100: .red
+        case MountainModel.peakThreshold..<70: .orange
+        case 30..<MountainModel.peakThreshold: .yellow
+        default: .green
+        }
+    }
+}
+
+private struct ScoreBreakdownView: View {
+    let breakdown: MountainModel.ScoreBreakdown
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Priority score").font(.subheadline.weight(.bold))
+            row("Mention", breakdown.mention)
+            row(breakdown.directness >= 0 ? "Direct message" : "Group chat", breakdown.directness)
+            row("Favorite", breakdown.favorite)
+            row("Low priority", breakdown.lowPriority)
+            row("Tone (AI)", breakdown.tone)
+            Divider()
+            HStack {
+                Text("Total").fontWeight(.semibold)
+                Spacer()
+                Text("\(breakdown.total)/100").fontWeight(.bold)
+            }
+        }
+        .padding()
+        .frame(width: 230)
+    }
+
+    private func row(_ label: String, _ value: Int) -> some View {
+        HStack {
+            Text(label).font(.caption).foregroundStyle(.secondary)
+            Spacer()
+            Text(value >= 0 ? "+\(value)" : "\(value)")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(value > 0 ? .green : (value < 0 ? .red : .secondary))
+        }
+    }
+}
+
+private struct Chip: View {
+    let icon: String
+    let label: String
+    let color: Color
+
+    var body: some View {
+        Label(label, systemImage: icon)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(color.opacity(0.15), in: .capsule)
+    }
+}
+
+private struct RoomAvatarView: View {
+    @Environment(UserSession.self) private var session
+    let avatarUrl: String?
+    var unreadCount: Int = 0
+    @State private var image: UIImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image).resizable().scaledToFill()
+            } else {
+                Image(systemName: "person.crop.circle.fill")
+                    .resizable()
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(width: 36, height: 36)
+        .clipShape(.circle)
+        .overlay(alignment: .topTrailing) { unreadBadge }
+        .task(id: avatarUrl) {
+            guard let avatarUrl else { image = nil; return }
+            image = await MediaLoader.shared.avatar(for: avatarUrl, client: session.client)
+        }
+    }
+
+    @ViewBuilder private var unreadBadge: some View {
+        if unreadCount > 0 {
+            Text(unreadCount > 99 ? "99+" : "\(unreadCount)")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 4)
+                .frame(minWidth: 16, minHeight: 16)
+                .background(.red, in: .capsule)
+                .offset(x: 4, y: -4)
+        }
+    }
+}
+
+#if DEBUG
+#Preview(traits: .sizeThatFitsLayout) {
+    VStack(spacing: 16) {
+        MountainCardHeader(
+            roomName: "Wonderful Group!",
+            avatarUrl: nil,
+            unreadCount: 3,
+            isFavorite: true,
+            isDirect: false,
+            isLowPriority: false,
+            isMuted: false,
+            isMentioned: true,
+            score: 82,
+            breakdown: .init(mention: 40, favorite: 30, directness: -10, lowPriority: 0, tone: 22),
+            onOpen: {}
+        )
+        MountainCardHeader(
+            roomName: "Quiet DM",
+            avatarUrl: nil,
+            unreadCount: 0,
+            isFavorite: false,
+            isDirect: true,
+            isLowPriority: true,
+            isMuted: true,
+            isMentioned: false,
+            score: 12,
+            breakdown: .init(mention: 0, favorite: 0, directness: 10, lowPriority: -60, tone: 8),
+            onOpen: {}
+        )
+    }
+}
+#endif

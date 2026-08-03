@@ -27,6 +27,7 @@ final class RoomListModel {
         let isDirect: Bool
         let isFavorite: Bool
         let isLowPriority: Bool
+        let isMuted: Bool
 
         /// Whether we've joined this room or are only invited to it. Invites live
         /// in the same list but can't be entered until accepted.
@@ -44,6 +45,7 @@ final class RoomListModel {
     }
 
     private(set) var summaries: [Summary] = []
+    var unread: [Summary] { summaries.filter(\.hasUnread) }
 
     @MainActor
     func awaitRoomsReady() async {
@@ -157,6 +159,7 @@ final class RoomListModel {
                            isDirect: info?.isDirect ?? false,
                            isFavorite: info?.isFavourite ?? false, //this uses the british spelling since the SDK does. Sorry for the inconsistancy.
                            isLowPriority: info?.isLowPriority ?? false,
+                           isMuted: info?.cachedUserDefinedNotificationMode == .mute,
                            membership: info?.membership ?? room.membership(),
                            avatarUrl: room.avatarUrl() ?? info?.heroes.first?.avatarUrl,
                            room: room)

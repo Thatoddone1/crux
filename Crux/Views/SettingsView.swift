@@ -15,6 +15,7 @@ struct SettingsView: View {
     
     
     @Environment(MatrixService.self) var matrix
+    @Environment(UserSession.self) var session
     var version: String {
         return Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown"
     }
@@ -41,6 +42,11 @@ struct SettingsView: View {
                         DeleteAccountView()
                     }
                     .foregroundStyle(.red)
+                }
+                Section("Mountain") {
+                    Button("Rescore Mountain") {
+                        Task { await session.mountain.reload(unread: session.roomList.unread) }
+                    }
                 }
                 Section("About") {
                     NavigationLink("View Onboarding", destination: OnboardingView(showsLoginActions: false))

@@ -12,13 +12,26 @@ import FoundationModels
 final class MountainModel {
     typealias Summary = RoomListModel.Summary
 
+    /// Where a room's score came from, for the tap-to-explain popover.
+    struct ScoreBreakdown {
+        let mention: Int
+        let favorite: Int
+        let directness: Int
+        let lowPriority: Int
+        /// The LLM's read of the most recent message's urgency (0–40).
+        let tone: Int
+        var total: Int { min(max(mention + favorite + directness + lowPriority + tone, 0), 100) }
+    }
+
     enum Phase { case idle, loading, ready }
     private(set) var phase: Phase = .idle
 
     private(set) var peak: [Summary] = []
     private(set) var slope: [Summary] = []
-    /// Frozen scores for the badge, keyed by room id.
-    private(set) var scores: [String: Int] = [:]
+    /// Frozen scores, keyed by room id, so the badge and its breakdown never
+    /// drift apart.
+    private(set) var breakdowns: [String: ScoreBreakdown] = [:]
+    func score(for summaryID: String) -> Int { breakdowns[summaryID]?.total ?? 0 }
 
     /// Rooms already placed, and ones swiped away this session (so a late unread
     /// update can't resurrect a dismissed card).
@@ -45,20 +58,26 @@ final class MountainModel {
         }
     }
 
+    /// Forces a full rescore, e.g. from a settings button — same loading screen
+    /// as the very first sort.
+    @MainActor
+    func reload(unread: [Summary]) async {
+        await load(unread)
+    }
+
     @MainActor
     private func load(_ unread: [Summary]) async {
         phase = .loading
         dismissed.removeAll()
-        let sorted = await Self.scoreAll(unread).sorted { $0.score > $1.score }
-        scores = Dictionary(sorted.map { ($0.summary.id, $0.score) }, uniquingKeysWith: { a, _ in a })
-        peak = sorted.filter { $0.score >= Self.peakThreshold }.map(\.summary)
-        slope = sorted.filter { $0.score < Self.peakThreshold }.map(\.summary)
+        let sorted = await Self.scoreAll(unread).sorted { $0.breakdown.total > $1.breakdown.total }
+        for item in sorted { breakdowns[item.summary.id] = item.breakdown }
+        peak = sorted.filter { $0.breakdown.total >= Self.peakThreshold }.map(\.summary)
+        slope = sorted.filter { $0.breakdown.total < Self.peakThreshold }.map(\.summary)
         placed = Set(sorted.map(\.summary.id))
         builtAt = Date()
         phase = .ready
     }
 
-    
     @MainActor
     func syncNewCards(unread: [Summary]) {
         guard phase == .ready else { return }
@@ -67,8 +86,8 @@ final class MountainModel {
         fresh.forEach { placed.insert($0.id) }   // reserve so churn can't double-add
         Task { @MainActor in
             for item in await Self.scoreAll(fresh) {
-                scores[item.summary.id] = item.score
-                if item.score >= Self.peakThreshold { peak.append(item.summary) }
+                breakdowns[item.summary.id] = item.breakdown
+                if item.breakdown.total >= Self.peakThreshold { peak.append(item.summary) }
                 else { slope.append(item.summary) }
             }
         }
@@ -86,14 +105,14 @@ final class MountainModel {
 
     // MARK: - Scoring
 
-    private struct Scored { let summary: Summary; let score: Int }
+    private struct Scored { let summary: Summary; let breakdown: ScoreBreakdown }
 
     /// Scores rooms concurrently. `Room` is `Sendable` and `latestEvent()` is a
     /// one-shot read, so this needs no main-actor hops or timeline subscriptions.
     private nonisolated static func scoreAll(_ summaries: [Summary]) async -> [Scored] {
         await withTaskGroup(of: Scored.self) { group in
             for summary in summaries {
-                group.addTask { Scored(summary: summary, score: await score(summary)) }
+                group.addTask { Scored(summary: summary, breakdown: await scoreBreakdown(summary)) }
             }
             var out: [Scored] = []
             for await scored in group { out.append(scored) }
@@ -101,18 +120,17 @@ final class MountainModel {
         }
     }
 
-    private nonisolated static func score(_ summary: Summary) async -> Int {
-        var score = 0
-        if summary.unreadMentions > 0 { score += 40 }   // a direct mention is high priority
-        if summary.isFavorite { score += 30 }
-        if summary.isDirect { score += 10 } else { score -= 10 }
-        if summary.isLowPriority { score -= 60 }
-
+    private nonisolated static func scoreBreakdown(_ summary: Summary) async -> ScoreBreakdown {
         let session = LanguageModelSession()
         let response = try? await session.respond(to: prompt(for: await latestLine(of: summary.room)),
                                                   generating: Int.self)
-        score += response?.content ?? 0
-        return min(max(score, 0), 100)
+        return ScoreBreakdown(
+            mention: summary.unreadMentions > 0 ? 40 : 0,   // a direct mention is high priority
+            favorite: summary.isFavorite ? 30 : 0,
+            directness: summary.isDirect ? 10 : -10,
+            lowPriority: summary.isLowPriority ? -60 : 0,
+            tone: response?.content ?? 0
+        )
     }
 
     /// The room's newest message as one transcript line, or empty if there isn't
