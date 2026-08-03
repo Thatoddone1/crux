@@ -166,7 +166,8 @@ struct RoomView: View {
                           onReport: { reportTarget = message },
                           onViewProfile: { profileTarget = ProfileTarget(id: message.senderId) },
                           onDelete: deleteAction(for: message),
-                          onEdit: editAction(for: message)
+                          onEdit: editAction(for: message),
+                          onReact: {key in Task { try await details?.timeline.toggleReaction(key, on: message) }  }
             )
         case .dayDivider(_, let date):
             Text(date, style: .date)

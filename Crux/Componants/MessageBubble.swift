@@ -15,6 +15,9 @@ struct MessageBubble: View {
     var onViewProfile: (() -> Void)? = nil
     var onDelete: (() -> Void)? = nil
     var onEdit: (() -> Void)? = nil
+    var onReact: ((_ key: String) -> Void)? = nil
+    
+    let defaultEmojis  = ["❤️", "👍️", "👎️", "😀", "🚡", "❓️", "🤔", "😱", "😲", "😴", "😵", "😷", "😸", "😹", "😺", "😻", "😼", "😽", "😾", "😿", "🙀", "👻", "🎃", "👹", "👺", "🤡", "👽", "👾", "🤖", "🤡", "👻", "🎃", "👹", "🤡", "👽", "👾", "🤖", "🤡", "👻"]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -43,7 +46,9 @@ struct MessageBubble: View {
             if !message.reactions.isEmpty {
                 HStack(spacing: 4) {
                     ForEach(message.reactions) { reaction in
-                        Text("\(reaction.key) \(reaction.count)")
+                        Button("\(reaction.key) \(reaction.count)") {
+                            onReact?(reaction.key)
+                        }
                             .font(.caption2)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
@@ -56,15 +61,42 @@ struct MessageBubble: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contextMenu {
+            //reactions pallete
+            if let onReact {
+                ControlGroup {
+                    ForEach(defaultEmojis, id: \.self) { emoji in
+                        
+                        //is that emoji already selected?
+                        let isSelected = message.reactions.contains(where: { $0.key == emoji })
+                        
+                        Button {
+                            onReact(emoji)
+                        } label: {
+                            if isSelected {
+                                Text("\(emoji) ✓")
+                            } else {
+                                Text(emoji)
+                            }
+                        }
+                    }
+                    
+                }
+                .controlGroupStyle(.palette) // <-- This modifier prevents the vertical stacking
+            }
+            
+            // 2. Existing Vertical Menu Items
             if let onDelete {
                 Button("Delete Message", systemImage: "delete.left", role: .destructive, action: onDelete)
             }
+            
             if let onEdit {
                 Button("Edit Message", systemImage: "pencil", action: onEdit)
             }
+            
             if let onViewProfile {
                 Button("View Profile", systemImage: "person.crop.circle", action: onViewProfile)
             }
+            
             if let onReport {
                 if !message.isOwn {
                     Button("Report Message", systemImage: "flag", role: .destructive, action: onReport)
@@ -83,10 +115,10 @@ struct MessageBubble: View {
         )
 
         MessageBubble(message: .sample(sender: "PersonB", body: "This message was edited.",
-            isOwn: true, isEdited: true,
+            isOwn: false, isEdited: true,
             reactions: [.init(key: "👍", count: 2, includesMe: true),
                         .init(key: "🎉", count: 1, includesMe: false)]),
-                      onReport: {}, onViewProfile:{}, onDelete: {}
+                      onReport: {}, onViewProfile:{}, onDelete: {}, onEdit: {}, onReact: {key in}
         )
 
         MessageBubble(message: .sample(sender: "PersonB", body: "This one hasn't sent yet.",
