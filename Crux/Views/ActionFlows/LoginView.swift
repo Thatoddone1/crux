@@ -40,7 +40,7 @@ struct LoginView: View {
                             .multilineTextAlignment(.center)
                             .animation(.easeInOut, value: phase)
                         
-                        Text(phase == .server ? "Crux is part of the open Matrix network." : "Enter your credentials to unlock your messages.")
+                        Text(phase == .server ? "Crux uses the open Matrix protocol." : "Enter your credentials to unlock your messages.")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -196,7 +196,7 @@ struct LoginView: View {
     // MARK: - Example Servers
     private var exampleServers: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("No account yet? Tap a community to try it — or type any server in the field above.")
+            Text("No account yet? Tap a community and click continue to make your account there — or type any server in the field above.")
                 .font(.footnote)
                 .foregroundColor(.secondary)
 
@@ -298,7 +298,7 @@ struct LoginView: View {
                             homeserverGraphic
                                 .padding(.top, 12)
 
-                            Text("Just like email (where `someone@gmail.com` can email `someone@yahoo.com`), Matrix is decentralized. \n\nYou can choose any server to host your account, and still securely message anyone else on the network. **matrix.org** is the default, but you can enter a custom one above.\n\nDon't have an account yet? Some servers let you sign in right here in your browser. Others use a password — for those, create your account on the server's own website first, then come back.")
+                            Text("Just like email (where `someone@gmail.com` can email `someone@yahoo.com`), Matrix is decentralized. \n\nYou can choose any server to host your account, and still securely message anyone else on the network. **matrix.org** is the largest server and default, but you can enter a custom one above.\n\nDon't have an account yet? Some servers let you sign up right here in your browser. Others use a password — for those, create your account on the server's own website first, then come back.")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
@@ -352,7 +352,7 @@ struct LoginView: View {
                     phase = .credentials
                 }
             } else {
-                errorMessage = "This server doesn't support any login method that Crux works with."
+                errorMessage = "This server doesn't support any login method that Crux is compatible with."
             }
         } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
             await matrix.cancelOAuthLogin()

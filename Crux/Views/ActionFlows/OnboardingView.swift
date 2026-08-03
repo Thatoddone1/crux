@@ -122,7 +122,7 @@ private struct MountainPage: View {
                 ZoneRow(title: "The Peak",
                         icon: "mountain.2.fill",
                         tint: .accentColor,
-                        detail: "Crux gives each unread conversation a priority score from many attributes about the room — not a fixed rule — and the highest land here at the peak.",
+                        detail: "Crux gives each unread conversation a priority score based upon attributes of the room. The highest land here at the peak.",
                         selected: highlight == .peak) {
                     toggle(.peak)
                 }
@@ -206,7 +206,7 @@ private struct RoomsSpacesPage: View {
                     .font(.title)
                     .fontWeight(.bold)
 
-                Text("How your conversations are organized.")
+                Text("How Matrix organizes your conversations")
                     .font(.body)
                     .multilineTextAlignment(.center)
                     .foregroundColor(.secondary)
@@ -553,7 +553,7 @@ private struct MatrixIDAnatomy: View {
         var explanation: String {
             switch self {
             case .sigil: "Every Matrix address starts with @. It simply means \"a person.\""
-            case .username: "Your username — chosen when you make your account, and cannot be changed!"
+            case .username: "Your username — chosen when you make your account, and it cannot be changed!"
             case .separator: "The colon separates who you are from where your account lives."
             case .server: "Your homeserver — the community that hosts your account, like the part after @ in an email address."
             }
@@ -612,4 +612,11 @@ private struct MatrixIDAnatomy: View {
         case .server: .purple
         }
     }
+}
+
+
+#Preview {
+    OnboardingView(
+        showsLoginActions: true
+    )
 }
