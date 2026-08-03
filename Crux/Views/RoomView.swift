@@ -8,7 +8,7 @@ import SwiftUI
 struct RoomView: View {
     let roomId: String
     @Environment(UserSession.self) private var session
-
+    
     @State private var details: RoomDetailsModel? //all details about the room
     @State private var errorMessage: String?
     @State private var profileTarget: ProfileTarget?
@@ -22,7 +22,7 @@ struct RoomView: View {
     private struct ProfileTarget: Identifiable {
         let id: String
     }
-
+    
     var body: some View {
         Group {
             if let details {
@@ -30,6 +30,13 @@ struct RoomView: View {
                     LazyVStack(spacing: 8) {
                         ForEach(details.timeline.entries) { entry in
                             row(for: entry)
+                                .onAppear {
+                                    if entry.id == details.timeline.entries.first?.id {
+                                        Task {
+                                            try? await details.timeline.loadMore()
+                                        }
+                                    }
+                                }
                         }
                     }
                     .padding(.horizontal)
@@ -111,14 +118,14 @@ struct RoomView: View {
             Text("Edit the contents of this message")
         }
     }
-
+    
     @ViewBuilder
     private func reportSheet(for message: TimelineModel.Message) -> some View {
         if let details {
             ReportMessageView(message: message, model: details.timeline)
         }
     }
-
+    
     /// Tapping the title (or holding anywhere in the room) opens the other
     /// participant's profile directly for a DM, or a simple member picker
     /// for group rooms.
@@ -130,12 +137,12 @@ struct RoomView: View {
             showMemberMenu = true
         }
     }
-
+    
     @ViewBuilder
     private func profileSheet(for target: ProfileTarget) -> some View {
         UserProfileView(userId: target.id, session: session, room: details?.room)
     }
-
+    
     @ViewBuilder
     private var memberMenu: some View {
         NavigationStack {
@@ -157,7 +164,7 @@ struct RoomView: View {
             .task { await details?.loadMembers() }
         }
     }
-
+    
     @ViewBuilder
     private func row(for entry: TimelineModel.Entry) -> some View {
         switch entry {
@@ -175,7 +182,7 @@ struct RoomView: View {
                 .foregroundStyle(.secondary)
         }
     }
-
+    
     ///if user has permissions return the deletion closure
     private func deleteAction(for message: TimelineModel.Message) -> (() -> Void)? {
         guard let details else { return nil }
@@ -209,7 +216,7 @@ struct RoomView: View {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, let details else { return }
         errorMessage = nil
-
+        
         Task {
             do {
                 try await details.timeline.send(text)
