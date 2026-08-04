@@ -13,7 +13,33 @@
 		6A8C95DF3012B7B2002FD706 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 6A8C95DE3012B7AD002FD706 /* LICENSE */; };
 		6A8C96143012C05A002FD706 /* LICENSE-EXCEPTION in Resources */ = {isa = PBXBuildFile; fileRef = 6A8C96133012C051002FD706 /* LICENSE-EXCEPTION */; };
 		6A8C96183012C3B0002FD706 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 6A8C96173012C3B0002FD706 /* README.md */; };
+		6AAA000D3020000D000AAAAD /* MatrixRustSDK in Frameworks */ = {isa = PBXBuildFile; productRef = 6AAA000C3020000C000AAAAC /* MatrixRustSDK */; };
+		6AAA000F3020000F000AAAAF /* CruxNSE.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6AAA000530200005000AAAA5 /* CruxNSE.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		6AAA001130200011000AAAB1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6ACF629A2FFD725500CE8E5B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6AAA000430200004000AAAA4;
+			remoteInfo = CruxNSE;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		6AAA000E3020000E000AAAAE /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				6AAA000F3020000F000AAAAF /* CruxNSE.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		6A2502793014192300A6C08D /* SECURITY.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = SECURITY.md; sourceTree = "<group>"; };
@@ -21,6 +47,7 @@
 		6A8C95DE3012B7AD002FD706 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		6A8C96133012C051002FD706 /* LICENSE-EXCEPTION */ = {isa = PBXFileReference; lastKnownFileType = text; path = "LICENSE-EXCEPTION"; sourceTree = "<group>"; };
 		6A8C96173012C3B0002FD706 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		6AAA000530200005000AAAA5 /* CruxNSE.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = CruxNSE.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		6ACF62A22FFD725500CE8E5B /* Crux.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Crux.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -28,9 +55,18 @@
 		6A4FEA3730000D4900849557 /* Exceptions for "Crux" folder in "Crux" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Crux.entitlements,
 				Info.plist,
 			);
 			target = 6ACF62A12FFD725500CE8E5B /* Crux */;
+		};
+		6AAA000330200003000AAAA3 /* Exceptions for "CruxNSE" folder in "CruxNSE" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				CruxNSE.entitlements,
+				Info.plist,
+			);
+			target = 6AAA000430200004000AAAA4 /* CruxNSE */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -57,6 +93,19 @@
 			path = Crux;
 			sourceTree = "<group>";
 		};
+		6AAA000130200001000AAAA1 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		6AAA000230200002000AAAA2 /* CruxNSE */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				6AAA000330200003000AAAA3 /* Exceptions for "CruxNSE" folder in "CruxNSE" target */,
+			);
+			path = CruxNSE;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -65,6 +114,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				6A4FEA1F30000B5B00849557 /* MatrixRustSDK in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6AAA000730200007000AAAA7 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6AAA000D3020000D000AAAAD /* MatrixRustSDK in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -80,6 +137,8 @@
 				6A8C95BD3012B45C002FD706 /* .gitignore */,
 				6A8C95DE3012B7AD002FD706 /* LICENSE */,
 				6ACF62A42FFD725500CE8E5B /* Crux */,
+				6AAA000230200002000AAAA2 /* CruxNSE */,
+				6AAA000130200001000AAAA1 /* Shared */,
 				6ACF62A32FFD725500CE8E5B /* Products */,
 			);
 			sourceTree = "<group>";
@@ -88,6 +147,7 @@
 			isa = PBXGroup;
 			children = (
 				6ACF62A22FFD725500CE8E5B /* Crux.app */,
+				6AAA000530200005000AAAA5 /* CruxNSE.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -102,13 +162,16 @@
 				6ACF629E2FFD725500CE8E5B /* Sources */,
 				6ACF629F2FFD725500CE8E5B /* Frameworks */,
 				6ACF62A02FFD725500CE8E5B /* Resources */,
+				6AAA000E3020000E000AAAAE /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				6AAA001030200010000AAAB0 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				6ACF62A42FFD725500CE8E5B /* Crux */,
+				6AAA000130200001000AAAA1 /* Shared */,
 			);
 			name = Crux;
 			packageProductDependencies = (
@@ -117,6 +180,30 @@
 			productName = Crux;
 			productReference = 6ACF62A22FFD725500CE8E5B /* Crux.app */;
 			productType = "com.apple.product-type.application";
+		};
+		6AAA000430200004000AAAA4 /* CruxNSE */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6AAA000930200009000AAAA9 /* Build configuration list for PBXNativeTarget "CruxNSE" */;
+			buildPhases = (
+				6AAA000630200006000AAAA6 /* Sources */,
+				6AAA000730200007000AAAA7 /* Frameworks */,
+				6AAA000830200008000AAAA8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				6AAA000230200002000AAAA2 /* CruxNSE */,
+				6AAA000130200001000AAAA1 /* Shared */,
+			);
+			name = CruxNSE;
+			packageProductDependencies = (
+				6AAA000C3020000C000AAAAC /* MatrixRustSDK */,
+			);
+			productName = CruxNSE;
+			productReference = 6AAA000530200005000AAAA5 /* CruxNSE.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -128,6 +215,9 @@
 				LastSwiftUpdateCheck = 2660;
 				LastUpgradeCheck = 2660;
 				TargetAttributes = {
+					6AAA000430200004000AAAA4 = {
+						CreatedOnToolsVersion = 26.6;
+					};
 					6ACF62A12FFD725500CE8E5B = {
 						CreatedOnToolsVersion = 26.6;
 					};
@@ -151,6 +241,7 @@
 			projectRoot = "";
 			targets = (
 				6ACF62A12FFD725500CE8E5B /* Crux */,
+				6AAA000430200004000AAAA4 /* CruxNSE */,
 			);
 		};
 /* End PBXProject section */
@@ -168,9 +259,23 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		6AAA000830200008000AAAA8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		6AAA000630200006000AAAA6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		6ACF629E2FFD725500CE8E5B /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -179,6 +284,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		6AAA001030200010000AAAB0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6AAA000430200004000AAAA4 /* CruxNSE */;
+			targetProxy = 6AAA001130200011000AAAB1 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		6ACF62AB2FFD725700CE8E5B /* Debug */ = {
@@ -307,6 +420,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = crux;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Crux/Crux.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 72FYH894PU;
@@ -346,6 +460,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = crux;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Crux/Crux.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 72FYH894PU;
@@ -380,6 +495,64 @@
 			};
 			name = Release;
 		};
+		6AAA000A3020000A000AAAAA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = CruxNSE/CruxNSE.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 72FYH894PU;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = CruxNSE/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = CruxNSE;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = me.joshuarocks.crux.nse;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		6AAA000B3020000B000AAAAB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = CruxNSE/CruxNSE.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 72FYH894PU;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = CruxNSE/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = CruxNSE;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = me.joshuarocks.crux.nse;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -401,6 +574,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		6AAA000930200009000AAAA9 /* Build configuration list for PBXNativeTarget "CruxNSE" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6AAA000A3020000A000AAAAA /* Debug */,
+				6AAA000B3020000B000AAAAB /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
@@ -416,6 +598,11 @@
 
 /* Begin XCSwiftPackageProductDependency section */
 		6A4FEA1E30000B5B00849557 /* MatrixRustSDK */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6A4FEA1D30000B5B00849557 /* XCRemoteSwiftPackageReference "matrix-rust-components-swift" */;
+			productName = MatrixRustSDK;
+		};
+		6AAA000C3020000C000AAAAC /* MatrixRustSDK */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 6A4FEA1D30000B5B00849557 /* XCRemoteSwiftPackageReference "matrix-rust-components-swift" */;
 			productName = MatrixRustSDK;

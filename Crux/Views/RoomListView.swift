@@ -14,11 +14,13 @@ enum RoomListRoute: Hashable {
 struct RoomListView: View {
     @Environment(MatrixService.self) private var matrix
     @Environment(UserSession.self) var session
-    
-    @State private var path = NavigationPath()
-    
+    /// The stack lives on the router so a notification tap can push onto it.
+    @Environment(AppRouter.self) private var router
+
     var body: some View {
-        NavigationStack(path: $path) {
+        @Bindable var router = router
+
+        NavigationStack(path: $router.roomsPath) {
             List(session.roomList.summaries) { summary in
                 Group {
                     if summary.isInvite {
@@ -50,7 +52,7 @@ struct RoomListView: View {
             .navigationDestination(for: RoomListRoute.self) { route in
                 switch route {
                 case .newRoom:
-                    NewRoomView(path: $path)
+                    NewRoomView(path: $router.roomsPath)
                 case .room(let id):
                     RoomView(roomId: id)
                 }

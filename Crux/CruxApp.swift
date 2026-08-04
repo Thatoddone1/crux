@@ -9,12 +9,16 @@ import SwiftUI
 
 @main
 struct CruxApp: App {
-    @State private var matrix = MatrixService()
+    // The delegate owns the session and the router: notifications can arrive
+    // before there's a scene to hold them.
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environment(matrix)
+                .environment(delegate.matrix)
+                .environment(delegate.push)
+                .environment(delegate.router)
         }
     }
 }

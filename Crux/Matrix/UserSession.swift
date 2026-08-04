@@ -11,6 +11,11 @@ enum RoomCreationError: LocalizedError {
     var errorDescription: String? { "Rooms need a name." }
 }
 
+enum RoomLookupError: LocalizedError {
+    case notFound
+    var errorDescription: String? { "That room couldn't be found." }
+}
+
 /// A signed-in Matrix session: the client, background sync and the room list.
 @Observable
 final class UserSession {
@@ -44,6 +49,9 @@ final class UserSession {
 
     /// Starts syncing with the homeserver and populating the room list, amoung other things
     func start() async {
+        // The queue is persistent, so a reply sent from a notification still
+        // goes out if the app was killed before it reached the server.
+        await client.enableAllSendQueues(enable: true)
         await syncService.start()
         await roomList.start()
         await spaces.start()
@@ -69,6 +77,22 @@ final class UserSession {
         let details = try RoomDetailsModel(session: self, roomId: roomId)
         roomDetailsCache[roomId] = details
         return details
+    }
+
+    /// Replies without opening the room, for the notification's reply action.
+    /// Goes through `client.getRoom` rather than the room list, which needs sync
+    /// to have run. Falls back to a plain message when the replied-to event
+    /// isn't loaded — better a sent message than a dropped one.
+    func sendReply(_ markdown: String, toEvent eventId: String, in roomId: String) async throws {
+        guard let room = try client.getRoom(roomId: roomId) else { throw RoomLookupError.notFound }
+
+        let timeline = try await room.timeline()
+        let content = messageEventContentFromMarkdown(md: markdown)
+        do {
+            try await timeline.sendReply(msg: content, eventId: eventId)
+        } catch {
+            _ = try await timeline.send(msg: content)
+        }
     }
 
     /// Leaves a room or space; declines the invite if you're only invited.

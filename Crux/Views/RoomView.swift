@@ -8,7 +8,8 @@ import SwiftUI
 struct RoomView: View {
     let roomId: String
     @Environment(UserSession.self) private var session
-    
+    @Environment(AppRouter.self) private var router
+
     @State private var details: RoomDetailsModel? //all details about the room
     @State private var errorMessage: String?
     @State private var profileTarget: ProfileTarget?
@@ -110,6 +111,9 @@ struct RoomView: View {
                 errorMessage = error.localizedDescription
             }
         }
+        // Suppresses notification banners for the room already on screen.
+        .onAppear { router.visibleRoomId = roomId }
+        .onDisappear { if router.visibleRoomId == roomId { router.visibleRoomId = nil } }
         .sheet(item: $profileTarget) { target in
             profileSheet(for: target)
         }

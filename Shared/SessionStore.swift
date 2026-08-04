@@ -17,8 +17,8 @@ nonisolated struct StoredSession: Codable {
     let oauthData: String?
     let usesNativeSlidingSync: Bool
 
-    /// Directory name under Application Support / Caches. Stored as a name
-    /// rather than a path because the app container moves between installs.
+    /// Directory name under the App Group container. Stored as a name rather
+    /// than a path because the container moves between installs.
     let sessionDirectory: String
 
     init(session: Session, sessionDirectory: String) {
@@ -92,10 +92,13 @@ nonisolated final class SessionStore {
         SecItemDelete(Self.baseQuery as CFDictionary)
     }
 
+    /// The access group is the app's own identifier, which is where items
+    /// written before the extension existed already live — so no migration.
     private static var baseQuery: [CFString: Any] {
         [kSecClass: kSecClassGenericPassword,
          kSecAttrService: service,
-         kSecAttrAccount: account]
+         kSecAttrAccount: account,
+         kSecAttrAccessGroup: AppConfiguration.keychainAccessGroup]
     }
 }
 

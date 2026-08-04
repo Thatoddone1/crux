@@ -8,7 +8,7 @@ import MatrixRustSDK
 
 ///configuration for how the client appears to the server
 enum MatrixConfiguration {
-    static let clientName = "Crux"
+    static let clientName = AppConfiguration.clientName
     static let defaultServer = "matrix.org"
     static let clientURI = "https://crux.joshuarocks.me"
 
@@ -56,11 +56,13 @@ struct LoginMethods {
 enum MatrixServiceError: LocalizedError {
     case noLoginInProgress
     case invalidLoginURL
+    case signedOut
 
     var errorDescription: String? {
         switch self {
         case .noLoginInProgress: "No login is in progress. Choose a server first."
         case .invalidLoginURL: "The homeserver returned an invalid login URL."
+        case .signedOut: "You're not signed in."
         }
     }
 }
@@ -78,6 +80,11 @@ final class MatrixService {
     private(set) var state: State = .restoring
 
     private let sessionStore = SessionStore()
+    private let push: PushModel
+
+    /// Held so concurrent callers share one restore instead of each building a
+    /// client on the same store — a notification tap and the UI both ask.
+    private var restoreTask: Task<Void, Never>?
 
     /// The client created for the server the user is logging in to, kept alive between choosing a server and completing the login
     private var loginClient: Client?
@@ -87,7 +94,9 @@ final class MatrixService {
     /// Keeps the auth-error listener alive; updates stop if this is released
     private var clientDelegateHandle: TaskHandle?
 
-    init() {
+    init(push: PushModel) {
+        self.push = push
+
         // The SDK's Rust core must be initialised once per process,
         // before the first Client is built.
         try? initPlatform(config: TracingConfiguration(logLevel: .info,
@@ -102,20 +111,29 @@ final class MatrixService {
     // MARK: - Session restoration
 
     /// Restores the previous session from the Keychain, if there is one.
+    /// Safe to call from anywhere: concurrent callers await the same restore.
     func restoreSession() async {
+        if let restoreTask { return await restoreTask.value }
         guard case .restoring = state else { return }
 
+        let task = Task { await performRestore() }
+        restoreTask = task
+        await task.value
+    }
+
+    private func performRestore() async {
         do {
             guard let stored = try sessionStore.load() else {
                 state = .signedOut
                 return
             }
-            
-            
+
+            SessionPaths.migrateLegacyStores(for: stored.sessionDirectory)
+
             //If the keychain file is there, but the session files themselves are not, that is "not good"
             //so we have to delete the orphaned keychian without a session, and start login all over
             //this can happen if app is deleted (but keychain is not)
-            guard FileManager.default.fileExists(atPath: Self.dataDirectory(for: stored.sessionDirectory).path) else {
+            guard FileManager.default.fileExists(atPath: SessionPaths.dataDirectory(for: stored.sessionDirectory).path) else {
                 clearStoredSession()
                 state = .signedOut
                 return
@@ -194,6 +212,7 @@ final class MatrixService {
         guard case .signedIn(let session) = state else { return }
         state = .signedOut
 
+        await push.signingOut(session.client)
         await session.stop()
         try? await session.client.logout()
         clearStoredSession()
@@ -222,8 +241,19 @@ final class MatrixService {
         try await session.client.deactivateAccount(authData: authData, eraseData: eraseData)
 
         state = .signedOut
+        await push.signingOut(session.client)
         await session.stop()
         clearStoredSession()
+    }
+
+    // MARK: - Notification reply
+
+    /// Replies to a message without any UI, for the notification's reply action.
+    /// Restores the session first — the app may have been woken purely for this.
+    func sendReply(_ markdown: String, toEvent eventId: String, in roomId: String) async {
+        await restoreSession()
+        guard case .signedIn(let session) = state else { return }
+        try? await session.sendReply(markdown, toEvent: eventId, in: roomId)
     }
 
     // MARK: - Private
@@ -251,12 +281,14 @@ final class MatrixService {
 
         await session.start()
         state = .signedIn(session)
+        push.signedIn(client)
     }
 
     private func handleAuthError() async {
         guard case .signedIn(let session) = state else { return }
         state = .signedOut
 
+        await push.signingOut(session.client)
         await session.stop()
         clearStoredSession()
     }
@@ -264,42 +296,16 @@ final class MatrixService {
     /// Removes the session from the Keychain along with its on-disk stores.
     private func clearStoredSession() {
         if let stored = try? sessionStore.load() {
-            try? FileManager.default.removeItem(at: Self.dataDirectory(for: stored.sessionDirectory))
-            try? FileManager.default.removeItem(at: Self.cacheDirectory(for: stored.sessionDirectory))
+            SessionPaths.remove(stored.sessionDirectory)
         }
         sessionStore.clear()
+        restoreTask = nil
     }
 
-    /// A builder preconfigured with everything every client needs: on-disk
-    /// stores unique to the session, sliding sync and token persistence.
     private func clientBuilder(sessionDirectory: String) throws -> ClientBuilder {
-        let dataDirectory = Self.dataDirectory(for: sessionDirectory)
-        let cacheDirectory = Self.cacheDirectory(for: sessionDirectory)
-        try FileManager.default.createDirectory(at: dataDirectory, withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
-
-        return ClientBuilder()
-            .sessionPaths(dataPath: dataDirectory.path(percentEncoded: false),
-                          cachePath: cacheDirectory.path(percentEncoded: false))
-            .slidingSyncVersionBuilder(versionBuilder: .discoverNative)
-            .setSessionDelegate(sessionDelegate: sessionStore)
-            // Bootstrap encryption for us: set up cross-signing and key backup
-            // automatically after login instead of leaving the account in a
-            // half-configured state. These are the defaults a real client
-            // (e.g. Element X) uses, and they drive the secret-storage setup
-            // that runs on first sync of a fresh account.
-            .autoEnableCrossSigning(autoEnableCrossSigning: true)
-            .autoEnableBackups(autoEnableBackups: true)
-            .backupDownloadStrategy(backupDownloadStrategy: .afterDecryptionFailure)
-            .userAgent(userAgent: MatrixConfiguration.clientName)
-    }
-
-    private static func dataDirectory(for sessionDirectory: String) -> URL {
-        URL.applicationSupportDirectory.appending(path: "MatrixSessions/\(sessionDirectory)")
-    }
-
-    private static func cacheDirectory(for sessionDirectory: String) -> URL {
-        URL.cachesDirectory.appending(path: "MatrixSessions/\(sessionDirectory)")
+        try MatrixClientFactory.builder(sessionDirectory: sessionDirectory,
+                                        process: .app,
+                                        sessionDelegate: sessionStore)
     }
 }
 
