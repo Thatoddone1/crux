@@ -34,13 +34,14 @@ struct MountainCard: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 10) {
-            VStack(alignment: .leading, spacing: 10) {
-                ForEach(messages) { message in
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
                     MessageBubble(message: message,
                                   onReact: onReact.map { react in { key in react(message, key) } },
                                   onReply: (canSend ? onReply : nil).map { _ in
                                       { replyTarget = message; composerFocus.wrappedValue = true }
                                   },
+                                  showsHeader: message.startsGroup(after: index > 0 ? messages[index - 1] : nil),
                                   maxLines: 3)
                 }
             }
@@ -74,6 +75,7 @@ struct MountainCard: View {
                 messages: [
                     .sample(sender: "Person A", body: "This is a wonderful message"),
                     .sample(sender: "Person A", body: "Message 2"),
+                    .sample(sender: "Person B", senderId: "@b:example.org", body: "A different sender"),
                 ],
                 isFocused: true,
                 onSend: { draft in print("sent: \(draft)") },

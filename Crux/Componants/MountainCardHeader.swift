@@ -27,7 +27,7 @@ struct MountainCardHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
-                RoomAvatarView(avatarUrl: avatarUrl, unreadCount: unreadCount)
+                AvatarView(avatarUrl: avatarUrl, unreadCount: unreadCount)
                 Text(roomName)
                     .font(.title3.weight(.bold))
                     .lineLimit(1)
@@ -152,44 +152,6 @@ private struct Chip: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(color.opacity(0.15), in: .capsule)
-    }
-}
-
-private struct RoomAvatarView: View {
-    @Environment(UserSession.self) private var session
-    let avatarUrl: String?
-    var unreadCount: Int = 0
-    @State private var image: UIImage?
-
-    var body: some View {
-        Group {
-            if let image {
-                Image(uiImage: image).resizable().scaledToFill()
-            } else {
-                Image(systemName: "person.crop.circle.fill")
-                    .resizable()
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .frame(width: 36, height: 36)
-        .clipShape(.circle)
-        .overlay(alignment: .topTrailing) { unreadBadge }
-        .task(id: avatarUrl) {
-            guard let avatarUrl else { image = nil; return }
-            image = await MediaLoader.shared.avatar(for: avatarUrl, client: session.client)
-        }
-    }
-
-    @ViewBuilder private var unreadBadge: some View {
-        if unreadCount > 0 {
-            Text(unreadCount > 99 ? "99+" : "\(unreadCount)")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 4)
-                .frame(minWidth: 16, minHeight: 16)
-                .background(.red, in: .capsule)
-                .offset(x: 4, y: -4)
-        }
     }
 }
 

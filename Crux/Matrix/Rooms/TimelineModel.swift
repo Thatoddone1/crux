@@ -66,9 +66,12 @@ final class TimelineModel {
         case failed
     }
 
-    /// Enough of the replied-to message to draw a chip above a reply. Both
-    /// fields are nil until the SDK has fetched the original event.
+    /// Enough of the replied-to message to draw a chip above a reply. Everything
+    /// but `eventId` is nil until the SDK has fetched the original event.
     struct ReplyPreview {
+        /// Always known — it's what the reply points at, and what we jump to.
+        let eventId: String
+        let senderId: String?
         let sender: String?
         let body: String?
     }
@@ -229,13 +232,24 @@ final class TimelineModel {
     /// isn't loaded yet, in which case we still show a chip — just an empty one.
     private static func replyPreview(of details: InReplyToDetails?) -> ReplyPreview? {
         guard let details else { return nil }
+        let eventId = details.eventId()
         guard case .ready(let content, let sender, let profile, _, _) = details.event(),
               case .msgLike(let msgLike) = content else {
-            return ReplyPreview(sender: nil, body: nil)
+            return ReplyPreview(eventId: eventId, senderId: nil, sender: nil, body: nil)
         }
         var name = sender
         if case .ready(let displayName, _, _) = profile, let displayName { name = displayName }
-        return ReplyPreview(sender: name, body: body(of: msgLike.kind))
+        return ReplyPreview(eventId: eventId, senderId: sender, sender: name, body: body(of: msgLike.kind))
+    }
+
+    /// Finds the entry holding `eventId`, for scrolling to a reply's target.
+    /// Nil when it hasn't been paginated in yet.
+    func entryID(forEvent eventId: String) -> String? {
+        entries.first { entry in
+            guard case .message(let message) = entry,
+                  case .eventId(let id) = message.itemID else { return false }
+            return id == eventId
+        }?.id
     }
 
     /// The text to show for a message, or nil for incompatible messages for now

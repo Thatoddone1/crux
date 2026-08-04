@@ -18,6 +18,9 @@ struct RoomView: View {
     @State private var editContent: String = ""
     @State private var showEdit: Bool = false
     @State private var replyTarget: TimelineModel.Message?
+    /// The entry a jump just landed on, flashed briefly then cleared.
+    @State private var highlightedEntryID: String?
+    @State private var highlightTask: Task<Void, Never>?
     @FocusState private var composerFocused: Bool
     
     
@@ -28,10 +31,13 @@ struct RoomView: View {
     var body: some View {
         Group {
             if let details {
+                ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(spacing: 8) {
-                        ForEach(details.timeline.entries) { entry in
-                            row(for: entry)
+                    LazyVStack(spacing: 2) {
+                        ForEach(Array(details.timeline.entries.enumerated()), id: \.element.id) { index, entry in
+                            row(for: entry,
+                                after: previousMessage(before: index, in: details.timeline.entries),
+                                proxy: proxy)
                                 .onAppear {
                                     if entry.id == details.timeline.entries.first?.id {
                                         Task {
@@ -67,6 +73,7 @@ struct RoomView: View {
                             .foregroundStyle(.secondary)
                             .padding()
                     }
+                }
                 }
             } else if let errorMessage {
                 ContentUnavailableView("Couldn't Open Room",
@@ -177,8 +184,38 @@ struct RoomView: View {
         }
     }
     
+    /// The message directly above `index`, or nil when a day divider (or the top
+    /// of the timeline) breaks the run.
+    private func previousMessage(before index: Int, in entries: [TimelineModel.Entry]) -> TimelineModel.Message? {
+        guard index > 0, case .message(let message) = entries[index - 1] else { return nil }
+        return message
+    }
+
+    /// Scrolls to the message a reply answers and flashes it, so the landing is
+    /// legible. Older history may not be paginated in yet — say so rather than
+    /// doing nothing.
+    private func jump(to eventId: String, using proxy: ScrollViewProxy) {
+        guard let entryID = details?.timeline.entryID(forEvent: eventId) else {
+            errorMessage = "That message hasn't loaded yet — scroll up to load more."
+            return
+        }
+        errorMessage = nil
+        withAnimation(.easeInOut(duration: 0.35)) {
+            proxy.scrollTo(entryID, anchor: .center)
+            highlightedEntryID = entryID
+        }
+        highlightTask?.cancel()
+        highlightTask = Task {
+            try? await Task.sleep(for: .seconds(1.4))
+            guard !Task.isCancelled else { return }
+            highlightedEntryID = nil
+        }
+    }
+
     @ViewBuilder
-    private func row(for entry: TimelineModel.Entry) -> some View {
+    private func row(for entry: TimelineModel.Entry,
+                     after previous: TimelineModel.Message?,
+                     proxy: ScrollViewProxy) -> some View {
         switch entry {
         case .message(let message):
             MessageBubble(message: message,
@@ -188,12 +225,18 @@ struct RoomView: View {
                           onEdit: editAction(for: message),
                           onReact: {key in Task { try await details?.timeline.toggleReaction(key, on: message) }  },
                           onReply: replyAction(for: message),
-                          swipeToReply: canSendMessage
+                          swipeToReply: canSendMessage,
+                          showsHeader: message.startsGroup(after: previous),
+                          onJumpToReply: message.replyTo.map { reply in
+                              { jump(to: reply.eventId, using: proxy) }
+                          },
+                          isHighlighted: highlightedEntryID == message.id
             )
         case .dayDivider(_, let date):
             Text(date, style: .date)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+                .padding(.vertical, 6)
         }
     }
     

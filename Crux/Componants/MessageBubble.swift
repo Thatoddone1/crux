@@ -20,27 +20,38 @@ struct MessageBubble: View {
     var onReply: (() -> Void)? = nil
     /// whether to allow swiping to reply (off in places like mountain stack where that makes no sense)
     var swipeToReply: Bool = false
+    /// False for a message grouped under the one above it — see `startsGroup(after:)`.
+    var showsHeader: Bool = true
+    /// Scrolls to the message this one replies to. Nil where there's no scroll view.
+    var onJumpToReply: (() -> Void)? = nil
+    /// Briefly flashed after something jumped here, so the landing is legible.
+    var isHighlighted: Bool = false
     var maxLines: Int? = nil
 
     let defaultEmojis  = ["❤️", "👍️", "👎️", "😀", "🚡", "❓️", "🤔", "😱", "😲", "😴", "😵", "😷"]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            
-            Text(message.sender)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            
-            if let replyTo = message.replyTo {
-                replyChip(replyTo)
+            if showsHeader {
+                MessageHeader(message: message,
+                              onViewProfile: onViewProfile,
+                              onJumpToReply: onJumpToReply)
+                    .padding(.leading, 4)
             }
 
-            Text(LocalizedStringKey(message.body))
-                .lineLimit(maxLines)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                // dim while queued, confirmed by SDK and updated
-                .opacity(message.sendState == .sending ? 0.6 : 1)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(LocalizedStringKey(message.body))
+                    .lineLimit(maxLines)
+                    // dim while queued, confirmed by SDK and updated
+                    .opacity(message.sendState == .sending ? 0.6 : 1)
+                Spacer(minLength: 8)
+                Text(message.date, format: .dateTime.hour().minute())
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .monospacedDigit()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
 
             if message.isEdited {
                 Text("edited")
@@ -71,6 +82,9 @@ struct MessageBubble: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .background(isHighlighted ? Color.accentColor.opacity(0.15) : .clear,
+                    in: .rect(cornerRadius: 14))
+        .animation(.easeOut(duration: 0.25), value: isHighlighted)
         .contextMenu {
             //reactions pallete
             if let onReact {
@@ -123,56 +137,48 @@ struct MessageBubble: View {
             }
         }
         .replySwipe(if: swipeToReply && message.canReply, perform: onReply)
+        .padding(.top, showsHeader ? 6 : 0)
     }
 
-    private func replyChip(_ reply: TimelineModel.ReplyPreview) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: "arrowshape.turn.up.left.fill")
-                .foregroundStyle(.tint)
-            Text(reply.sender ?? "Reply")
-                .fontWeight(.semibold)
-            if let body = reply.body {
-                Text(body)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-        }
-        .font(.caption2)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .glassEffect(in: .capsule)
-    }
 }
 
 #if DEBUG
 //some sample messages
 #Preview(traits: .sizeThatFitsLayout) {
-    VStack(spacing: 12) {
+    VStack(spacing: 2) {
         MessageBubble(
-            message: .sample(sender: "PersonA", body: "This is a wonderful test message. The point of this is to test Crux.")
+            message: .sample(sender: "PersonA", senderId: "@a:example.org", body: "This is a wonderful test message. The point of this is to test Crux.")
         )
 
-        MessageBubble(message: .sample(sender: "PersonB", body: "This message was edited.",
+        // Grouped under the message above it — no header of its own.
+        MessageBubble(message: .sample(sender: "PersonA", senderId: "@a:example.org", body: "And a second one, right underneath."),
+                      showsHeader: false)
+
+        MessageBubble(message: .sample(sender: "PersonA", senderId: "@a:example.org", body: "And a third."),
+                      showsHeader: false)
+
+        MessageBubble(message: .sample(sender: "PersonB", senderId: "@b:example.org", body: "This message was edited.",
             isOwn: false, isEdited: true,
             reactions: [.init(key: "👍", count: 2, includesMe: true),
                         .init(key: "🎉", count: 1, includesMe: false)]),
                       onReport: {}, onViewProfile:{}, onDelete: {}, onEdit: {}, onReact: {key in}
         )
 
-        MessageBubble(message: .sample(sender: "PersonB", body: "This one hasn't sent yet.",
+        MessageBubble(message: .sample(sender: "PersonB", senderId: "@b:example.org", body: "This one hasn't sent yet.",
             isOwn: true, sendState: .sending),
                       onReport: {}, onViewProfile:{})
 
-        MessageBubble(message: .sample(sender: "PersonB", body: "This one was rejected by the server.",
+        MessageBubble(message: .sample(sender: "PersonB", senderId: "@b:example.org", body: "This one was rejected by the server.",
             isOwn: true, sendState: .failed),
                       onReport: {}, onViewProfile:{})
 
-        MessageBubble(message: .sample(sender: "PersonA", body: "Yes, ship it.",
-            replyTo: .init(sender: "PersonB", body: "Are we happy with the new stack?")),
-                      onReply: {}, swipeToReply: true)
+        MessageBubble(message: .sample(sender: "PersonA", senderId: "@a:example.org", body: "Yes, ship it.",
+            replyTo: .init(eventId: "$1", senderId: "@b:example.org", sender: "PersonB",
+                           body: "Are we happy with the new stack? It's a long quote, so it ellipses.")),
+                      onReply: {}, swipeToReply: true, onJumpToReply: {})
 
-        MessageBubble(message: .sample(sender: "PersonA", body: "A reply whose original hasn't loaded.",
-            replyTo: .init(sender: nil, body: nil)))
+        MessageBubble(message: .sample(sender: "PersonA", senderId: "@a:example.org", body: "A reply whose original hasn't loaded.",
+            replyTo: .init(eventId: "$2", senderId: nil, sender: nil, body: nil)))
     }
     .padding()
 }
