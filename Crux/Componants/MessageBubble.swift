@@ -16,7 +16,8 @@ struct MessageBubble: View {
     var onDelete: (() -> Void)? = nil
     var onEdit: (() -> Void)? = nil
     var onReact: ((_ key: String) -> Void)? = nil
-    
+    var maxLines: Int? = nil
+
     let defaultEmojis  = ["❤️", "👍️", "👎️", "😀", "🚡", "❓️", "🤔", "😱", "😲", "😴", "😵", "😷", "😸", "😹", "😺", "😻", "😼", "😽", "😾", "😿", "🙀", "👻", "🎃", "👹", "👺", "🤡", "👽", "👾", "🤖", "🤡", "👻", "🎃", "👹", "🤡", "👽", "👾", "🤖", "🤡", "👻"]
 
     var body: some View {
@@ -26,6 +27,7 @@ struct MessageBubble: View {
                 .foregroundStyle(.secondary)
 
             Text(LocalizedStringKey(message.body))
+                .lineLimit(maxLines)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 // Dim while queued; the SDK confirms it via the listener.

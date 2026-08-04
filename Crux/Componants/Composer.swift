@@ -9,12 +9,15 @@ import SwiftUI
 
 
 struct Composer: View{
-    
+
     var onSend: (_ draft: String) -> Void
     @State var draft = ""
     var errorMessage: String? = nil
-    
-    
+    var focus: FocusState<Bool>.Binding
+
+    ///shape of the composer
+    private var shape: some Shape { .rect(cornerRadius: 20) }
+
     var body: some View {
         VStack(spacing: 4) {
             if let errorMessage {
@@ -29,10 +32,11 @@ struct Composer: View{
             }
             HStack(spacing: 8) {
                 TextField("Message", text: $draft, axis: .vertical)
+                    .lineLimit(1...5)
+                    .focused(focus)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .glassEffect()
-                    .background(Color(.systemGray6), in: .capsule)
+                    .glassEffect(in: shape)
                     .onSubmit({onSend(draft); draft = ""})
                 Button(action: {onSend(draft); draft = ""}) {
                     Image(systemName: "arrow.up")
@@ -48,16 +52,19 @@ struct Composer: View{
 
 
 #Preview(traits: .sizeThatFitsLayout) {
-    VStack {
-        Composer(
-            onSend: {(_ draft: String) in},
-        )
-        .padding()
-        
-        Composer(
-            onSend: {(_ draft: String) in},
-            errorMessage: "ERROR!"
-        )
-        .padding()
+    @FocusState var focus: Bool
+        VStack {
+            Composer(
+                onSend: {(_ draft: String) in},
+                focus: $focus
+            )
+            .padding()
+
+            Composer(
+                onSend: {(_ draft: String) in},
+                errorMessage: "ERROR!",
+                focus: $focus
+            )
+            .padding()
     }
 }

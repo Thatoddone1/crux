@@ -8,16 +8,13 @@ import SwiftUI
 
 struct CardStack<Item: Identifiable, Card: View>: View {
     let items: [Item]
-    /// Swipe the centred card right to dismiss it; nil disables swiping.
+    /// Swipe the focused card right to dismiss it; nil disables swiping.
     var onDismiss: ((Item) -> Void)? = nil
-    /// Open the centred card (e.g. into the full room); nil disables it.
+    /// Open the focused card (e.g. into the full room); nil disables it.
     var onOpen: ((Item) -> Void)? = nil
-    /// `isFocused` is true only for the centred card; `onOpen` is non-nil only
-    /// there, so a card's interactive content isn't fighting a card-wide tap.
     @ViewBuilder let card: (_ item: Item, _ isFocused: Bool, _ onOpen: (() -> Void)?) -> Card
 
-    /// The centred card, tracked by id so an appended card can't shift which one
-    /// you're looking at.
+    ///which card is focused?
     @State private var focusedID: Item.ID?
     @State private var dragY: CGFloat = 0
     @State private var dragX: CGFloat = 0
@@ -26,6 +23,9 @@ struct CardStack<Item: Identifiable, Card: View>: View {
     @State private var dismissingID: Item.ID?
     /// True while the dismiss drag is past threshold (drives one haptic).
     @State private var armedToDismiss = false
+    ///heights of cards (to help determine position)
+    @State private var heights: [Item.ID: CGFloat] = [:]
+    @State private var dragCount = 0
 
     private var focusedIndex: Int {
         items.firstIndex { $0.id == focusedID } ?? 0
@@ -33,18 +33,22 @@ struct CardStack<Item: Identifiable, Card: View>: View {
 
     var body: some View {
         GeometryReader { geo in
-            let step = geo.size.height * Stack.stepFraction
+            // so keyboard shifts everything correctly
+            let available = geo.size.height - Stack.topInset
+            let lift = max(0, height(at: focusedIndex) - available)
             GlassEffectContainer {
-                ZStack {
-                    // Only the focused card and its near neighbours are mounted,
-                    // so we don't open every room's timeline at once.
+                ZStack(alignment: .top) {
                     ForEach(window(), id: \.element.id) { index, item in
-                        cardSlot(item, distance: index - focusedIndex, step: step)
+                        cardSlot(item, distance: index - focusedIndex)
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.top, Stack.topInset)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .offset(y: -lift)
+                .animation(.easeOut(duration: 0.25), value: lift)
                 .contentShape(.rect)
-                .gesture(pagingGesture(step: step))
+                .gesture(pagingGesture())
+                .environment(\.deckDragCount, dragCount)
             }
         }
         .onChange(of: items.map(\.id), initial: true) { _, ids in reconcileFocus(ids) }
@@ -60,13 +64,12 @@ struct CardStack<Item: Identifiable, Card: View>: View {
             .map { (offset: $0.offset, element: $0.element) }
     }
 
-    private func cardSlot(_ item: Item, distance: Int, step: CGFloat) -> some View {
+    private func cardSlot(_ item: Item, distance: Int) -> some View {
         let isFocused = distance == 0
         let dismissing = item.id == dismissingID
         let dx = dismissing ? Stack.flyOff : (isFocused && axis == .horizontal ? max(0, dragX) : 0)
-        // A dismissing card stays centred as it flies right, so it clears out
-        // while the next card rises into its place.
-        let dy = dismissing ? 0 : CGFloat(distance) * step + (axis == .vertical ? dragY : 0)
+        // A dismissing card holds the focused slot as it flies right, so it. clears out while the next card rises into its place.
+        let dy = dismissing ? 0 : restOffset(for: distance) + (axis == .vertical ? dragY : 0)
         return ZStack(alignment: .leading) {
             if isFocused && dx > 1 {
                 Label("Read", systemImage: "checkmark.circle.fill")
@@ -76,6 +79,9 @@ struct CardStack<Item: Identifiable, Card: View>: View {
                     .opacity(min(Double(dx / Stack.dismissDistance), 1))
             }
             card(item, isFocused, isFocused ? { onOpen?(item) } : nil)
+                .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { height in
+                    heights[item.id] = height
+                }
                 .offset(x: dx)
                 .geometryGroup()   // isolate the swipe transform from the glass
         }
@@ -93,14 +99,34 @@ struct CardStack<Item: Identifiable, Card: View>: View {
         .zIndex(dismissing ? 2 : (isFocused ? 1 : 0))
     }
 
-    /// One drag handles both axes: it locks to whichever direction it starts
-    /// moving. Vertical pages the deck; horizontal (on the centred card) marks
-    /// it read.
-    private func pagingGesture(step: CGFloat) -> some Gesture {
+    ///relative position to the focused card
+    private func restOffset(for distance: Int) -> CGFloat {
+        guard distance != 0 else { return 0 }
+        var y: CGFloat = 0
+        if distance > 0 {
+            for i in 0..<distance {
+                y += height(at: focusedIndex + i) + Stack.cardGap
+            }
+        } else {
+            for i in 1...(-distance) {
+                y -= height(at: focusedIndex - i) + Stack.cardGap
+            }
+        }
+        return y
+    }
+
+    /// Falls back to an estimate for the one frame between a card mounting and its `onGeometryChange` reporting a real height.
+    private func height(at index: Int) -> CGFloat {
+        guard let id = items[safe: index]?.id else { return Stack.fallbackHeight }
+        return heights[id] ?? Stack.fallbackHeight
+    }
+
+    private func pagingGesture() -> some Gesture {
         DragGesture(minimumDistance: 12)
             .onChanged { value in
                 if axis == nil {
                     axis = abs(value.translation.width) > abs(value.translation.height) ? .horizontal : .vertical
+                    dragCount += 1
                 }
                 switch axis {
                 case .horizontal:
@@ -150,9 +176,7 @@ struct CardStack<Item: Identifiable, Card: View>: View {
         }
     }
 
-    /// Flies the card off to the right and hands removal to the caller. Focus
-    /// slides to a neighbour in the same motion; the flown card is only dropped
-    /// once the caller's list no longer contains it, so nothing pops back.
+    /// Flies the card off to the right and hands removal to the caller. Focus slides to a neighbour in the same motion; the flown card is only dropped once the caller's list no longer contains it, so nothing pops back.
     private func dismiss(_ item: Item) {
         let nextID = items[safe: focusedIndex + 1]?.id ?? items[safe: focusedIndex - 1]?.id
         withAnimation(Stack.snap) {
@@ -160,16 +184,11 @@ struct CardStack<Item: Identifiable, Card: View>: View {
             dragX = 0
             if let nextID { focusedID = nextID }   // next card rises to centre meanwhile
         } completion: {
-            // Only now hand removal to the caller — removing mid-flight would
-            // blink the card out instead of letting it (and the Read reveal)
-            // finish. `reconcileFocus` clears `dismissingID` once it's gone.
             onDismiss?(item)
         }
     }
 
-    /// Keeps `focusedID` on a real card as the list changes (first load, an
-    /// appended card, or the caller removing a dismissed one), and releases the
-    /// fly-off state once that card is actually gone.
+    ///keep focus on a real card
     private func reconcileFocus(_ ids: [Item.ID]) {
         if focusedID == nil || !ids.contains(where: { $0 == focusedID }) {
             focusedID = ids.first { $0 != dismissingID } ?? ids.first
@@ -184,10 +203,25 @@ private extension Array {
     }
 }
 
-/// The deck's feel knobs. Non-generic + `nonisolated` so they're usable from
-/// the generic `CardStack` without each instantiation re-specializing them.
+private struct DeckDragCountKey: EnvironmentKey {
+    static let defaultValue = 0
+}
+
+extension EnvironmentValues {
+    /// Bumped when a deck drag starts. Cards watch it to drop keyboard focus —
+    /// `CardStack` is generic over its content, so it can't do that itself.
+    var deckDragCount: Int {
+        get { self[DeckDragCountKey.self] }
+        set { self[DeckDragCountKey.self] = newValue }
+    }
+}
+
+///tuning for the stack
 private nonisolated enum Stack {
-    static let stepFraction: CGFloat = 0.85    // centre-to-centre gap, as a share of height
+   
+    static let cardGap: CGFloat = 8            // this card's bottom -> next card's top
+    static let topInset: CGFloat = 12          // clears the section bar above the deck
+    static let fallbackHeight: CGFloat = 260   // estimate until a card is measured
     static let windowRadius = 2                // how many neighbours each side to mount
     static let neighbourOpacity: CGFloat = 0.5 // peeking cards' opacity
     static let pageThreshold: CGFloat = 60     // projected travel (pt) to turn a page
@@ -214,13 +248,17 @@ private let stackDemos = [
 ]
 
 #Preview {
+    @FocusState var focus: Bool
+    
     CardStack(items: stackDemos, onDismiss: { _ in }, onOpen: { _ in }) { room, isFocused, onOpen in
         VStack(alignment: .leading, spacing: 8) {
             MountainCardHeader(roomName: room.name, avatarUrl: nil, unreadCount: 0, isFavorite: false,
                                isDirect: true, isLowPriority: false, isMuted: false, isMentioned: false,
                                score: 0, breakdown: nil, isFocused: isFocused, onOpen: onOpen)
-            MountainCard(messages: room.messages, isFocused: isFocused, onSend: { _ in })
+            MountainCard(messages: room.messages, isFocused: isFocused, onSend: { _ in },
+                         composerFocus: $focus)
         }
     }
 }
+
 #endif

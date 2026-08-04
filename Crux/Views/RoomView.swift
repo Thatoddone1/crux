@@ -17,6 +17,7 @@ struct RoomView: View {
     @State private var editTarget: TimelineModel.Message?
     @State private var editContent: String = ""
     @State private var showEdit: Bool = false
+    @FocusState private var composerFocused: Bool
     
     
     private struct ProfileTarget: Identifiable {
@@ -47,12 +48,14 @@ struct RoomView: View {
                     .padding(.horizontal)
                 }
                 .defaultScrollAnchor(.bottom)
+                .scrollDismissesKeyboard(.immediately)
                 .onLongPressGesture(perform: openTitleAction)
                 .safeAreaInset(edge: .bottom) {
                     if (details.canSendMessage()) {
                         Composer(
                             onSend: send,
-                            errorMessage: errorMessage
+                            errorMessage: errorMessage,
+                            focus: $composerFocused
                         )
                     } else {
                         Text("You don't have permission to send here")

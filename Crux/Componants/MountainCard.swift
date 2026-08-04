@@ -17,6 +17,7 @@ struct MountainCard: View {
     var canSend: Bool = true
     let onSend: (_ draft: String) -> Void
     var onReact: ((_ message: TimelineModel.Message, _ key: String) -> Void)? = nil
+    var composerFocus: FocusState<Bool>.Binding
 
     private var shape: some Shape { .rect(cornerRadius: 24) }
 
@@ -28,12 +29,18 @@ struct MountainCard: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 10) {
-            ForEach(messages) { message in
-                MessageBubble(message: message,
-                              onReact: onReact.map { react in { key in react(message, key) } })
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(messages) { message in
+                    MessageBubble(message: message,
+                                  onReact: onReact.map { react in { key in react(message, key) } },
+                                  maxLines: 3)
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(.rect)
+            .onTapGesture { composerFocus.wrappedValue = false }
             if canSend {
-                Composer(onSend: onSend)
+                Composer(onSend: onSend, focus: composerFocus)
             } else {
                 Text("You don't have permission to send here")
                     .font(.caption)
@@ -46,20 +53,24 @@ struct MountainCard: View {
 }
 #if DEBUG
 #Preview(traits: .sizeThatFitsLayout) {
-    VStack {
-        MountainCard(
-            messages: [
-                .sample(sender: "Person A", body: "This is a wonderful message"),
-                .sample(sender: "Person A", body: "Message 2"),
-            ],
-            isFocused: true,
-            onSend: { draft in print("sent: \(draft)") }
-        )
-        MountainCard(
-            messages: [.sample(sender: "Person A", body: "A receding, unfocused card")],
-            isFocused: false,
-            onSend: { draft in print("sent: \(draft)") }
-        )
-    }
+    @FocusState var focus: Bool
+        VStack {
+            MountainCard(
+                messages: [
+                    .sample(sender: "Person A", body: "This is a wonderful message"),
+                    .sample(sender: "Person A", body: "Message 2"),
+                ],
+                isFocused: true,
+                onSend: { draft in print("sent: \(draft)") },
+                composerFocus: $focus
+            )
+            MountainCard(
+                messages: [.sample(sender: "Person A", body: "A receding, unfocused card")],
+                isFocused: false,
+                onSend: { draft in print("sent: \(draft)") },
+                composerFocus: $focus
+            )
+        }
 }
+
 #endif

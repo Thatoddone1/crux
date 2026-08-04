@@ -14,7 +14,9 @@ struct MountainCardCell: View {
     var isFocused: Bool = true
     var onOpen: (() -> Void)? = nil
     @Environment(UserSession.self) var session
+    @Environment(\.deckDragCount) private var deckDragCount
     @State private var details: RoomDetailsModel?
+    @FocusState private var isComposing: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -37,9 +39,12 @@ struct MountainCardCell: View {
                 isFocused: isFocused,
                 canSend: canSend,
                 onSend: { text in Task { try? await details?.timeline.send(text) } },
-                onReact: { message, key in Task { try? await details?.timeline.toggleReaction(key, on: message) } }
+                onReact: { message, key in Task { try? await details?.timeline.toggleReaction(key, on: message) } },
+                composerFocus: $isComposing
             )
         }
+        .onChange(of: deckDragCount) { _, _ in isComposing = false }
+        .onChange(of: isFocused) { _, focused in if !focused { isComposing = false } }
         .task {
             guard let details = try? session.roomDetails(for: summary.id) else { return }
             self.details = details
