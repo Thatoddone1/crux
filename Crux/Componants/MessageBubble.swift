@@ -25,7 +25,7 @@ struct MessageBubble: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            Text(message.body)
+            Text(LocalizedStringKey(message.body))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 // Dim while queued; the SDK confirms it via the listener.
