@@ -17,7 +17,11 @@ struct MountainCard: View {
     var canSend: Bool = true
     let onSend: (_ draft: String) -> Void
     var onReact: ((_ message: TimelineModel.Message, _ key: String) -> Void)? = nil
+   /// no option to swipe to reply, only from the context menu
+    var onReply: ((_ draft: String, _ message: TimelineModel.Message) -> Void)? = nil
     var composerFocus: FocusState<Bool>.Binding
+
+    @State private var replyTarget: TimelineModel.Message?
 
     private var shape: some Shape { .rect(cornerRadius: 24) }
 
@@ -25,6 +29,7 @@ struct MountainCard: View {
         content
             .glassEffect(isFocused ? .regular.interactive() : .regular, in: shape)
             .padding()
+            .onChange(of: isFocused) { _, focused in if !focused { replyTarget = nil } }
     }
 
     private var content: some View {
@@ -33,6 +38,9 @@ struct MountainCard: View {
                 ForEach(messages) { message in
                     MessageBubble(message: message,
                                   onReact: onReact.map { react in { key in react(message, key) } },
+                                  onReply: (canSend ? onReply : nil).map { _ in
+                                      { replyTarget = message; composerFocus.wrappedValue = true }
+                                  },
                                   maxLines: 3)
                 }
             }
@@ -40,7 +48,14 @@ struct MountainCard: View {
             .contentShape(.rect)
             .onTapGesture { composerFocus.wrappedValue = false }
             if canSend {
-                Composer(onSend: onSend, focus: composerFocus)
+                Composer(onSend: onSend,
+                         replyingTo: replyTarget,
+                         onReply: { draft, message in
+                             replyTarget = nil
+                             onReply?(draft, message)
+                         },
+                         onCancelReply: { replyTarget = nil },
+                         focus: composerFocus)
             } else {
                 Text("You don't have permission to send here")
                     .font(.caption)
@@ -62,6 +77,7 @@ struct MountainCard: View {
                 ],
                 isFocused: true,
                 onSend: { draft in print("sent: \(draft)") },
+                onReply: { draft, message in print("replied \(draft) to \(message.sender)") },
                 composerFocus: $focus
             )
             MountainCard(

@@ -17,6 +17,7 @@ struct RoomView: View {
     @State private var editTarget: TimelineModel.Message?
     @State private var editContent: String = ""
     @State private var showEdit: Bool = false
+    @State private var replyTarget: TimelineModel.Message?
     @FocusState private var composerFocused: Bool
     
     
@@ -55,6 +56,9 @@ struct RoomView: View {
                         Composer(
                             onSend: send,
                             errorMessage: errorMessage,
+                            replyingTo: replyTarget,
+                            onReply: sendReply,
+                            onCancelReply: { replyTarget = nil },
                             focus: $composerFocused
                         )
                     } else {
@@ -182,7 +186,9 @@ struct RoomView: View {
                           onViewProfile: { profileTarget = ProfileTarget(id: message.senderId) },
                           onDelete: deleteAction(for: message),
                           onEdit: editAction(for: message),
-                          onReact: {key in Task { try await details?.timeline.toggleReaction(key, on: message) }  }
+                          onReact: {key in Task { try await details?.timeline.toggleReaction(key, on: message) }  },
+                          onReply: replyAction(for: message),
+                          swipeToReply: canSendMessage
             )
         case .dayDivider(_, let date):
             Text(date, style: .date)
@@ -191,6 +197,20 @@ struct RoomView: View {
         }
     }
     
+    /// A reply is just another message, so it needs the same permission —
+    /// without a composer there'd be nowhere to draft it or cancel out of it.
+    private var canSendMessage: Bool {
+        details?.canSendMessage() ?? false
+    }
+
+    private func replyAction(for message: TimelineModel.Message) -> (() -> Void)? {
+        guard canSendMessage else { return nil }
+        return {
+            replyTarget = message
+            composerFocused = true
+        }
+    }
+
     ///if user has permissions return the deletion closure
     private func deleteAction(for message: TimelineModel.Message) -> (() -> Void)? {
         guard let details else { return nil }
@@ -228,6 +248,26 @@ struct RoomView: View {
         Task {
             do {
                 try await details.timeline.send(text)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func sendReply(_ draft: String, to message: TimelineModel.Message) {
+        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, let details else { return }
+        errorMessage = nil
+        replyTarget = nil
+
+        Task {
+            do {
+                try await details.timeline.reply(text, to: message)
+            } catch TimelineError.notYetSent {
+                // The target slipped out from under us — send the text plainly
+                // rather than throwing away what they typed.
+                errorMessage = "Sent without a reply — \(message.sender)'s message hadn't landed yet."
+                try? await details.timeline.send(text)
             } catch {
                 errorMessage = error.localizedDescription
             }

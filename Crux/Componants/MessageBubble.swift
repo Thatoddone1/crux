@@ -16,21 +16,30 @@ struct MessageBubble: View {
     var onDelete: (() -> Void)? = nil
     var onEdit: (() -> Void)? = nil
     var onReact: ((_ key: String) -> Void)? = nil
+    /// Starts a reply to this message. Offered in the context menu wherever it's set.
+    var onReply: (() -> Void)? = nil
+    /// whether to allow swiping to reply (off in places like mountain stack where that makes no sense)
+    var swipeToReply: Bool = false
     var maxLines: Int? = nil
 
-    let defaultEmojis  = ["❤️", "👍️", "👎️", "😀", "🚡", "❓️", "🤔", "😱", "😲", "😴", "😵", "😷", "😸", "😹", "😺", "😻", "😼", "😽", "😾", "😿", "🙀", "👻", "🎃", "👹", "👺", "🤡", "👽", "👾", "🤖", "🤡", "👻", "🎃", "👹", "🤡", "👽", "👾", "🤖", "🤡", "👻"]
+    let defaultEmojis  = ["❤️", "👍️", "👎️", "😀", "🚡", "❓️", "🤔", "😱", "😲", "😴", "😵", "😷"]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
+            
             Text(message.sender)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            
+            if let replyTo = message.replyTo {
+                replyChip(replyTo)
+            }
 
             Text(LocalizedStringKey(message.body))
                 .lineLimit(maxLines)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                // Dim while queued; the SDK confirms it via the listener.
+                // dim while queued, confirmed by SDK and updated
                 .opacity(message.sendState == .sending ? 0.6 : 1)
 
             if message.isEdited {
@@ -87,6 +96,10 @@ struct MessageBubble: View {
             }
             
             // 2. Existing Vertical Menu Items
+            if let onReply, message.canReply {
+                Button("Reply", systemImage: "arrowshape.turn.up.left", action: onReply)
+            }
+
             if let onDelete {
                 Button("Delete Message", systemImage: "delete.left", role: .destructive, action: onDelete)
             }
@@ -109,6 +122,25 @@ struct MessageBubble: View {
                 UIPasteboard.general.string = message.body
             }
         }
+        .replySwipe(if: swipeToReply && message.canReply, perform: onReply)
+    }
+
+    private func replyChip(_ reply: TimelineModel.ReplyPreview) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: "arrowshape.turn.up.left.fill")
+                .foregroundStyle(.tint)
+            Text(reply.sender ?? "Reply")
+                .fontWeight(.semibold)
+            if let body = reply.body {
+                Text(body)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+        .font(.caption2)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .glassEffect(in: .capsule)
     }
 }
 
@@ -134,6 +166,13 @@ struct MessageBubble: View {
         MessageBubble(message: .sample(sender: "PersonB", body: "This one was rejected by the server.",
             isOwn: true, sendState: .failed),
                       onReport: {}, onViewProfile:{})
+
+        MessageBubble(message: .sample(sender: "PersonA", body: "Yes, ship it.",
+            replyTo: .init(sender: "PersonB", body: "Are we happy with the new stack?")),
+                      onReply: {}, swipeToReply: true)
+
+        MessageBubble(message: .sample(sender: "PersonA", body: "A reply whose original hasn't loaded.",
+            replyTo: .init(sender: nil, body: nil)))
     }
     .padding()
 }

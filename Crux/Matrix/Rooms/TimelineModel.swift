@@ -6,6 +6,11 @@
 import Foundation
 import MatrixRustSDK
 
+enum TimelineError: LocalizedError {
+    case notYetSent
+    var errorDescription: String? { "That message hasn't finished sending yet." }
+}
+
 /// list of every event inside a specific room (and all the structs needed for that)
 @Observable
 final class TimelineModel {
@@ -42,6 +47,8 @@ final class TimelineModel {
         let isEditable: Bool
         /// Whether this message can be replied to (only true once it has an event id).
         let canReply: Bool
+        /// The message this one answers, or nil if it isn't a reply.
+        let replyTo: ReplyPreview?
 
         /// Identifies the message to the SDK for edits, reactions and redaction.
         /// It's an event id for messages the server has accepted, or a local
@@ -57,6 +64,13 @@ final class TimelineModel {
         case sending
         /// The server rejected it (e.g. you lack permission to post here, other errors)
         case failed
+    }
+
+    /// Enough of the replied-to message to draw a chip above a reply. Both
+    /// fields are nil until the SDK has fetched the original event.
+    struct ReplyPreview {
+        let sender: String?
+        let body: String?
     }
 
     /// One emoji reaction, aggregated across everyone who used it.
@@ -111,7 +125,7 @@ final class TimelineModel {
     /// Sends a Markdown message as a reply to `message`.
     func reply(_ markdown: String, to message: Message) async throws {
         // You can only reply to a message the server has already accepted.
-        guard case .eventId(let eventID) = message.itemID else { return }
+        guard case .eventId(let eventID) = message.itemID else { throw TimelineError.notYetSent }
         try await timeline?.sendReply(msg: messageEventContentFromMarkdown(md: markdown),
                                       eventId: eventID)
     }
@@ -207,7 +221,21 @@ final class TimelineModel {
                        mentions: Self.mentions(of: content.kind),
                        isEditable: event.isEditable,
                        canReply: event.canBeRepliedTo,
+                       replyTo: Self.replyPreview(of: content.inReplyTo),
                        itemID: event.eventOrTransactionId)
+    }
+
+    /// Flattens the SDK's reply details for display. The replied-to event often
+    /// isn't loaded yet, in which case we still show a chip — just an empty one.
+    private static func replyPreview(of details: InReplyToDetails?) -> ReplyPreview? {
+        guard let details else { return nil }
+        guard case .ready(let content, let sender, let profile, _, _) = details.event(),
+              case .msgLike(let msgLike) = content else {
+            return ReplyPreview(sender: nil, body: nil)
+        }
+        var name = sender
+        if case .ready(let displayName, _, _) = profile, let displayName { name = displayName }
+        return ReplyPreview(sender: name, body: body(of: msgLike.kind))
     }
 
     /// The text to show for a message, or nil for incompatible messages for now
@@ -270,11 +298,12 @@ extension TimelineModel.Message {
                        isEdited: Bool = false,
                        sendState: TimelineModel.SendState = .sent,
                        reactions: [TimelineModel.Reaction] = [],
-                       mentions: Mentions? = nil) -> Self {
+                       mentions: Mentions? = nil,
+                       replyTo: TimelineModel.ReplyPreview? = nil) -> Self {
         .init(id: id, sender: sender, senderId: senderId, senderAvatarUrl: senderAvatarUrl, body: body, date: Date(),
               isOwn: isOwn, isEdited: isEdited, sendState: sendState,
               reactions: reactions, mentions: mentions, isEditable: isOwn, canReply: true,
-              itemID: .eventId(eventId: id))
+              replyTo: replyTo, itemID: .eventId(eventId: id))
     }
 }
 #endif

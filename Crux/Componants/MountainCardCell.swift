@@ -40,6 +40,7 @@ struct MountainCardCell: View {
                 canSend: canSend,
                 onSend: { text in Task { try? await details?.timeline.send(text) } },
                 onReact: { message, key in Task { try? await details?.timeline.toggleReaction(key, on: message) } },
+                onReply: { text, message in Task { await reply(text, to: message) } },
                 composerFocus: $isComposing
             )
         }
@@ -50,6 +51,15 @@ struct MountainCardCell: View {
             self.details = details
             await details.start()
         }
+    }
+
+    private func reply(_ text: String, to message: TimelineModel.Message) async {
+        guard let timeline = details?.timeline else { return }
+        do {
+            try await timeline.reply(text, to: message)
+        } catch TimelineError.notYetSent {
+            try? await timeline.send(text)
+        } catch {}
     }
 
     private var canSend: Bool {
