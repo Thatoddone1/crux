@@ -5,11 +5,9 @@
 
 import Foundation
 
-/// Where the SDK keeps its stores. They live in the App Group container so the
-/// notification service extension can open them from its own process.
+/// Where the SDK keeps its stores.
 nonisolated enum SessionPaths {
-    /// Falls back to the app's private container when the App Group isn't
-    /// available, so a missing entitlement costs notifications rather than the app.
+    ///fallbacks to private storage if no app groups are available
     private static var root: URL {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: AppConfiguration.appGroup)
             ?? URL.applicationSupportDirectory
@@ -38,8 +36,7 @@ nonisolated enum SessionPaths {
         try? FileManager.default.removeItem(at: root.appending(path: "Sessions/\(sessionDirectory)"))
     }
 
-    /// Sessions created before the stores moved into the App Group. Temporary —
-    /// delete once every install has launched a build containing this.
+    /// migrate private stores from before moved to app groups (for notifications and others)
     static func migrateLegacyStores(for sessionDirectory: String) {
         let manager = FileManager.default
         let legacyData = URL.applicationSupportDirectory.appending(path: "MatrixSessions/\(sessionDirectory)")

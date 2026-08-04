@@ -8,6 +8,7 @@ import SwiftUI
 struct ContentView: View {
     @Environment(MatrixService.self) private var matrix
     @Environment(AppRouter.self) private var router
+    @Environment(PushModel.self) private var push
     @State var settingsIsPresented = false
 
     var body: some View {
@@ -37,6 +38,7 @@ struct ContentView: View {
                 .environment(session)
                 // A tapped notification waits here until there's a session to open it with.
                 .task(id: router.pendingRoomId) { router.openPendingRoom() }
+                .task { await push.requestAuthorizationIfNeeded() }
             }
         }
         .task { await matrix.restoreSession() }

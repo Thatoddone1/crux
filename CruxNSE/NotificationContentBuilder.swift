@@ -29,8 +29,9 @@ enum NotificationContentBuilder {
         content.body = body(of: item)
         content.badge = badge
         content.sound = item.isNoisy == true ? .default : nil
-        content.interruptionLevel = item.hasMention == true ? .timeSensitive : .active
-        // Groups every notification from one room together in Notification Centre.
+        let breakThroughFocus = item.hasMention == true && AppConfiguration.Push.timeSensitiveMentions
+        content.interruptionLevel = breakThroughFocus ? .timeSensitive : .active
+        
         content.threadIdentifier = roomId
         content.categoryIdentifier = AppConfiguration.Push.messageCategory
         content.userInfo = [AppConfiguration.Push.roomIdKey: roomId,
@@ -45,7 +46,8 @@ enum NotificationContentBuilder {
     }
 
     /// Gives the notification the same treatment Messages gets: the sender's
-    /// avatar in a circle and a conversation iOS can group and reply to.
+    /// avatar in a circle, and a conversation iOS can group and reply to.
+    /// Any failure here falls back to plain content rather than no notification.
     private static func communicationContent(_ content: UNMutableNotificationContent,
                                              item: NotificationItem,
                                              roomId: String,
@@ -79,8 +81,8 @@ enum NotificationContentBuilder {
         return try content.updating(from: intent)
     }
 
-    /// Built from data rather than a URL — URL-backed images routinely fail to
-    /// load inside an extension's sandbox.
+    /// Built from data rather than a URL — URL-backed images fail inside an
+    /// extension's sandbox.
     private static func avatar(for item: NotificationItem, client: Client) async -> INImage? {
         guard let url = item.senderInfo.avatarUrl ?? item.roomInfo.avatarUrl,
               let image = await MediaLoader.shared.avatar(for: url, client: client, pixelSize: 128),

@@ -31,11 +31,8 @@ nonisolated enum MatrixClientFactory {
 
         switch process {
         case .app:
-            // Bootstrap encryption for us: set up cross-signing and key backup
-            // automatically after login instead of leaving the account in a
-            // half-configured state. These are the defaults a real client
-            // (e.g. Element X) uses, and they drive the secret-storage setup
-            // that runs on first sync of a fresh account.
+            // Sets up cross-signing and key backup after login, rather than
+            // leaving a fresh account half-configured.
             return builder
                 .autoEnableCrossSigning(autoEnableCrossSigning: true)
                 .autoEnableBackups(autoEnableBackups: true)

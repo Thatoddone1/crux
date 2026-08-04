@@ -246,14 +246,22 @@ final class MatrixService {
         clearStoredSession()
     }
 
-    // MARK: - Notification reply
+    // MARK: - Notification actions
 
-    /// Replies to a message without any UI, for the notification's reply action.
-    /// Restores the session first — the app may have been woken purely for this.
-    func sendReply(_ markdown: String, toEvent eventId: String, in roomId: String) async {
+    func sendMessage(_ markdown: String, in roomId: String) async {
+        await withRestoredSession { try await $0.sendMessage(markdown, in: roomId) }
+    }
+
+    func react(_ key: String, toEvent eventId: String, in roomId: String) async {
+        await withRestoredSession { try await $0.react(key, toEvent: eventId, in: roomId) }
+    }
+
+    /// Notification actions can arrive before there is any UI, so the session
+    /// may still need restoring.
+    private func withRestoredSession(_ work: (UserSession) async throws -> Void) async {
         await restoreSession()
         guard case .signedIn(let session) = state else { return }
-        try? await session.sendReply(markdown, toEvent: eventId, in: roomId)
+        try? await work(session)
     }
 
     // MARK: - Private

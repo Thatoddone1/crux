@@ -79,20 +79,23 @@ final class UserSession {
         return details
     }
 
-    /// Replies without opening the room, for the notification's reply action.
+    /// Sends without opening the room, for the notification's reply action.
     /// Goes through `client.getRoom` rather than the room list, which needs sync
-    /// to have run. Falls back to a plain message when the replied-to event
-    /// isn't loaded — better a sent message than a dropped one.
-    func sendReply(_ markdown: String, toEvent eventId: String, in roomId: String) async throws {
-        guard let room = try client.getRoom(roomId: roomId) else { throw RoomLookupError.notFound }
+    /// to have run.
+    func sendMessage(_ markdown: String, in roomId: String) async throws {
+        let timeline = try await notificationTimeline(for: roomId)
+        _ = try await timeline.send(msg: messageEventContentFromMarkdown(md: markdown))
+    }
 
-        let timeline = try await room.timeline()
-        let content = messageEventContentFromMarkdown(md: markdown)
-        do {
-            try await timeline.sendReply(msg: content, eventId: eventId)
-        } catch {
-            _ = try await timeline.send(msg: content)
-        }
+    /// Reacts without opening the room, for the notification's reaction actions.
+    func react(_ key: String, toEvent eventId: String, in roomId: String) async throws {
+        let timeline = try await notificationTimeline(for: roomId)
+        _ = try await timeline.toggleReaction(itemId: .eventId(eventId: eventId), key: key)
+    }
+
+    private func notificationTimeline(for roomId: String) async throws -> Timeline {
+        guard let room = try client.getRoom(roomId: roomId) else { throw RoomLookupError.notFound }
+        return try await room.timeline()
     }
 
     /// Leaves a room or space; declines the invite if you're only invited.

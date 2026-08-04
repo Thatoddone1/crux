@@ -7,9 +7,8 @@ import MatrixRustSDK
 import UserNotifications
 
 /// Decrypts an incoming push and replaces the placeholder the gateway sent.
-///
-/// The push itself only carries a room and event id, so everything the user
-/// reads is fetched and decrypted here, inside a 30-second budget.
+/// The push carries only a room and event id, so everything the user reads is
+/// fetched and decrypted here, within a 30-second budget.
 final class NotificationService: UNNotificationServiceExtension {
     private let lock = NSLock()
     private var contentHandler: ((UNNotificationContent) -> Void)?

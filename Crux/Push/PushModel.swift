@@ -19,10 +19,17 @@ final class PushModel {
     private var deviceToken: Data?
     private weak var client: Client?
 
-    /// Asks for permission, then registers. Safe to call again once granted.
     func requestAuthorization() async {
         _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
         await refresh()
+    }
+
+    /// Prompts the first time the user reaches the signed-in app. iOS only shows
+    /// the system alert while the status is undetermined, so this is a no-op afterwards.
+    func requestAuthorizationIfNeeded() async {
+        await refresh()
+        guard authorizationStatus == .notDetermined else { return }
+        await requestAuthorization()
     }
 
     /// APNs tokens rotate on device restore or reinstall, so this runs at every

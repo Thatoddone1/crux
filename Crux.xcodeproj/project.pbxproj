@@ -55,7 +55,6 @@
 		6A4FEA3730000D4900849557 /* Exceptions for "Crux" folder in "Crux" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Crux.entitlements,
 				Info.plist,
 			);
 			target = 6ACF62A12FFD725500CE8E5B /* Crux */;
@@ -63,7 +62,6 @@
 		6AAA000330200003000AAAA3 /* Exceptions for "CruxNSE" folder in "CruxNSE" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				CruxNSE.entitlements,
 				Info.plist,
 			);
 			target = 6AAA000430200004000AAAA4 /* CruxNSE */;
@@ -81,18 +79,6 @@
 /* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		6ACF62A42FFD725500CE8E5B /* Crux */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				6A4FEA3730000D4900849557 /* Exceptions for "Crux" folder in "Crux" target */,
-				6AEB5E953017D4400084E25C /* Exceptions for "Crux" folder in "Copy Bundle Resources" phase from "Crux" target */,
-			);
-			explicitFileTypes = {
-				Matrix/Rooms/RoomDetailsModel.swift = sourcecode.swift;
-			};
-			path = Crux;
-			sourceTree = "<group>";
-		};
 		6AAA000130200001000AAAA1 /* Shared */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Shared;
@@ -106,22 +92,34 @@
 			path = CruxNSE;
 			sourceTree = "<group>";
 		};
+		6ACF62A42FFD725500CE8E5B /* Crux */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				6A4FEA3730000D4900849557 /* Exceptions for "Crux" folder in "Crux" target */,
+				6AEB5E953017D4400084E25C /* Exceptions for "Crux" folder in "Copy Bundle Resources" phase from "Crux" target */,
+			);
+			explicitFileTypes = {
+				Matrix/Rooms/RoomDetailsModel.swift = sourcecode.swift;
+			};
+			path = Crux;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		6ACF629F2FFD725500CE8E5B /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				6A4FEA1F30000B5B00849557 /* MatrixRustSDK in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		6AAA000730200007000AAAA7 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				6AAA000D3020000D000AAAAD /* MatrixRustSDK in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6ACF629F2FFD725500CE8E5B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6A4FEA1F30000B5B00849557 /* MatrixRustSDK in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -155,6 +153,30 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		6AAA000430200004000AAAA4 /* CruxNSE */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6AAA000930200009000AAAA9 /* Build configuration list for PBXNativeTarget "CruxNSE" */;
+			buildPhases = (
+				6AAA000630200006000AAAA6 /* Sources */,
+				6AAA000730200007000AAAA7 /* Frameworks */,
+				6AAA000830200008000AAAA8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				6AAA000130200001000AAAA1 /* Shared */,
+				6AAA000230200002000AAAA2 /* CruxNSE */,
+			);
+			name = CruxNSE;
+			packageProductDependencies = (
+				6AAA000C3020000C000AAAAC /* MatrixRustSDK */,
+			);
+			productName = CruxNSE;
+			productReference = 6AAA000530200005000AAAA5 /* CruxNSE.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		6ACF62A12FFD725500CE8E5B /* Crux */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 6ACF62AD2FFD725700CE8E5B /* Build configuration list for PBXNativeTarget "Crux" */;
@@ -170,8 +192,8 @@
 				6AAA001030200010000AAAB0 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				6ACF62A42FFD725500CE8E5B /* Crux */,
 				6AAA000130200001000AAAA1 /* Shared */,
+				6ACF62A42FFD725500CE8E5B /* Crux */,
 			);
 			name = Crux;
 			packageProductDependencies = (
@@ -180,30 +202,6 @@
 			productName = Crux;
 			productReference = 6ACF62A22FFD725500CE8E5B /* Crux.app */;
 			productType = "com.apple.product-type.application";
-		};
-		6AAA000430200004000AAAA4 /* CruxNSE */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 6AAA000930200009000AAAA9 /* Build configuration list for PBXNativeTarget "CruxNSE" */;
-			buildPhases = (
-				6AAA000630200006000AAAA6 /* Sources */,
-				6AAA000730200007000AAAA7 /* Frameworks */,
-				6AAA000830200008000AAAA8 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				6AAA000230200002000AAAA2 /* CruxNSE */,
-				6AAA000130200001000AAAA1 /* Shared */,
-			);
-			name = CruxNSE;
-			packageProductDependencies = (
-				6AAA000C3020000C000AAAAC /* MatrixRustSDK */,
-			);
-			productName = CruxNSE;
-			productReference = 6AAA000530200005000AAAA5 /* CruxNSE.appex */;
-			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -247,6 +245,13 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		6AAA000830200008000AAAA8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		6ACF62A02FFD725500CE8E5B /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -256,13 +261,6 @@
 				6A25027A3014192800A6C08D /* SECURITY.md in Resources */,
 				6A8C96143012C05A002FD706 /* LICENSE-EXCEPTION in Resources */,
 				6A8C96183012C3B0002FD706 /* README.md in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		6AAA000830200008000AAAA8 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -294,6 +292,64 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		6AAA000A3020000A000AAAAA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = CruxNSE/CruxNSE.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 72FYH894PU;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = CruxNSE/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = CruxNSE;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = me.joshuarocks.crux.nse;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		6AAA000B3020000B000AAAAB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = CruxNSE/CruxNSE.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 72FYH894PU;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = CruxNSE/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = CruxNSE;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = me.joshuarocks.crux.nse;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		6ACF62AB2FFD725700CE8E5B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -495,67 +551,18 @@
 			};
 			name = Release;
 		};
-		6AAA000A3020000A000AAAAA /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = CruxNSE/CruxNSE.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 72FYH894PU;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = CruxNSE/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = CruxNSE;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 0.0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = me.joshuarocks.crux.nse;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		6AAA000B3020000B000AAAAB /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = CruxNSE/CruxNSE.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 72FYH894PU;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = CruxNSE/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = CruxNSE;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 0.0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = me.joshuarocks.crux.nse;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		6AAA000930200009000AAAA9 /* Build configuration list for PBXNativeTarget "CruxNSE" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6AAA000A3020000A000AAAAA /* Debug */,
+				6AAA000B3020000B000AAAAB /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		6ACF629D2FFD725500CE8E5B /* Build configuration list for PBXProject "Crux" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -570,15 +577,6 @@
 			buildConfigurations = (
 				6ACF62AE2FFD725700CE8E5B /* Debug */,
 				6ACF62AF2FFD725700CE8E5B /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		6AAA000930200009000AAAA9 /* Build configuration list for PBXNativeTarget "CruxNSE" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				6AAA000A3020000A000AAAAA /* Debug */,
-				6AAA000B3020000B000AAAAB /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

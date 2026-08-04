@@ -11,8 +11,7 @@ enum NotificationSessionError: Error {
 }
 
 /// The signed-in client the extension decrypts with. iOS reuses the extension
-/// process across notifications, so building it once and keeping it saves the
-/// bulk of the 30-second budget on every push after the first.
+/// process across notifications, so this is built once and kept.
 actor NotificationSession {
     static let shared = NotificationSession()
 

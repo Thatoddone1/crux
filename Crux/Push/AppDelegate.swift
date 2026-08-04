@@ -28,15 +28,21 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         push.setDeviceToken(deviceToken)
     }
 
-    /// The inline reply field the extension's notifications opt into.
+    /// The actions the extension's notifications opt into. No action requires
+    /// authentication, so all of them work straight from the lock screen.
     private static var messageCategory: UNNotificationCategory {
         let reply = UNTextInputNotificationAction(identifier: AppConfiguration.Push.replyAction,
                                                   title: "Reply",
                                                   options: [],
                                                   textInputButtonTitle: "Send",
                                                   textInputPlaceholder: "Message")
+        let reactions = AppConfiguration.Push.reactions.map {
+            UNNotificationAction(identifier: AppConfiguration.Push.reactionAction(for: $0),
+                                 title: $0,
+                                 options: [])
+        }
         return UNNotificationCategory(identifier: AppConfiguration.Push.messageCategory,
-                                      actions: [reply],
+                                      actions: [reply] + reactions,
                                       intentIdentifiers: [],
                                       options: [])
     }
@@ -46,23 +52,38 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     /// Don't banner a room the user is already reading.
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
-        roomId(in: notification) == router.visibleRoomId ? [] : [.banner, .sound, .list]
+        guard let roomId = roomId(in: notification), roomId == router.visibleRoomId else {
+            return [.banner, .sound, .list]
+        }
+        return []
     }
 
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 didReceive response: UNNotificationResponse) async {
-        guard let roomId = roomId(in: response.notification) else { return }
+        let userInfo = response.notification.request.content.userInfo
+        guard let roomId = userInfo[AppConfiguration.Push.roomIdKey] as? String else { return }
+        let eventId = userInfo[AppConfiguration.Push.eventIdKey] as? String
 
-        guard let reply = response as? UNTextInputNotificationResponse,
-              let eventId = response.notification.request.content
-                  .userInfo[AppConfiguration.Push.eventIdKey] as? String else {
-            return router.open(roomId: roomId)
+        switch response.actionIdentifier {
+        case UNNotificationDefaultActionIdentifier:
+            router.open(roomId: roomId)
+
+        case AppConfiguration.Push.replyAction:
+            guard let reply = response as? UNTextInputNotificationResponse else { return }
+            await inBackground { await self.matrix.sendMessage(reply.userText, in: roomId) }
+
+        default:
+            guard let key = AppConfiguration.Push.reactionKey(forAction: response.actionIdentifier),
+                  let eventId else { return }
+            await inBackground { await self.matrix.react(key, toEvent: eventId, in: roomId) }
         }
+    }
 
-        // The app was woken with no UI, and may be killed as soon as this
-        // returns — the assertion buys enough time to queue the message.
-        let task = UIApplication.shared.beginBackgroundTask(withName: "Quick reply")
-        await matrix.sendReply(reply.userText, toEvent: eventId, in: roomId)
+    /// An action wakes the app with no UI, and it may be killed as soon as this
+    /// returns — the assertion buys enough time to queue the send.
+    private func inBackground(_ work: () async -> Void) async {
+        let task = UIApplication.shared.beginBackgroundTask(withName: "Notification action")
+        await work()
         UIApplication.shared.endBackgroundTask(task)
     }
 

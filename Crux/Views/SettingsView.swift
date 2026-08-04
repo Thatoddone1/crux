@@ -16,7 +16,6 @@ struct SettingsView: View {
     
     @Environment(MatrixService.self) var matrix
     @Environment(UserSession.self) var session
-    @Environment(PushModel.self) var push
     var version: String {
         return Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown"
     }
@@ -38,16 +37,9 @@ struct SettingsView: View {
                         VerificationView()
                     }
                 }
-                Section("Notifications") {
-                    switch push.authorizationStatus {
-                    case .authorized, .provisional, .ephemeral:
-                        LabeledContent("Notifications", value: "On")
-                    case .denied:
-                        LabeledContent("Notifications", value: "Off in Settings")
-                    default:
-                        Button("Turn On Notifications") {
-                            Task { await push.requestAuthorization() }
-                        }
+                Section {
+                    NavigationLink("Notifications") {
+                        NotificationSettingsView()
                     }
                 }
                 Section {
