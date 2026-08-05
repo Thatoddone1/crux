@@ -38,12 +38,12 @@ struct MountainCardHeader: View {
                 }
             }
             HStack(spacing: 6) {
-                if isMentioned { Chip(icon: "at", label: "Mentioned", color: .red) }
-                if isFavorite { Chip(icon: "star.fill", label: "Favorite", color: .yellow) }
-                if isDirect { Chip(icon: "person.fill", label: "Direct", color: .blue) }
-                else { Chip(icon: "person.2.fill", label: "Group", color: .purple) }
-                if isLowPriority { Chip(icon: "arrow.down.circle.fill", label: "Low Priority", color: .gray) }
-                if isMuted { Chip(icon: "bell.slash.fill", label: "Muted", color: .secondary) }
+                if isMentioned { Chip.Presets.mentioned }
+                if isFavorite { Chip.Presets.favorite }
+                if isDirect { Chip.Presets.direct }
+                else { Chip.Presets.group }
+                if isLowPriority { Chip.Presets.lowPriority }
+                if isMuted { Chip.Presets.muted }
                 Spacer()
                 ScoreChip(score: score, breakdown: breakdown, isInteractive: isFocused)
             }
@@ -140,20 +140,6 @@ private struct ScoreBreakdownView: View {
     }
 }
 
-private struct Chip: View {
-    let icon: String
-    let label: String
-    let color: Color
-
-    var body: some View {
-        Label(label, systemImage: icon)
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(color)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(color.opacity(0.15), in: .capsule)
-    }
-}
 
 #if DEBUG
 #Preview(traits: .sizeThatFitsLayout) {
