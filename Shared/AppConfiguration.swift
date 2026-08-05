@@ -35,8 +35,6 @@ nonisolated enum AppConfiguration {
         static let messageCategory = "me.joshuarocks.crux.message"
         static let replyAction = "me.joshuarocks.crux.reply"
 
-        /// Offered as one-tap actions on a message notification.
-        static let reactions = ["👍", "❤️", "😂"]
 
         private static let reactionActionPrefix = "me.joshuarocks.crux.react."
 

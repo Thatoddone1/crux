@@ -33,16 +33,20 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     private static var messageCategory: UNNotificationCategory {
         let reply = UNTextInputNotificationAction(identifier: AppConfiguration.Push.replyAction,
                                                   title: "Reply",
-                                                  options: [],
+                                                  options: [.authenticationRequired],
                                                   textInputButtonTitle: "Send",
                                                   textInputPlaceholder: "Message")
-        let reactions = AppConfiguration.Push.reactions.map {
-            UNNotificationAction(identifier: AppConfiguration.Push.reactionAction(for: $0),
-                                 title: $0,
-                                 options: [])
-        }
+        let like = UNNotificationAction(identifier: AppConfiguration.Push.reactionAction(for: "👍️"),
+                                 title: "Like 👍️",
+                                 options: [.authenticationRequired])
+        let dislike = UNNotificationAction(identifier: AppConfiguration.Push.reactionAction(for: "👎️"),
+                                 title: "Dislike 👎️",
+                                 options: [.authenticationRequired])
+        let heart = UNNotificationAction(identifier: AppConfiguration.Push.reactionAction(for: "❤️"),
+                                 title: "Heart ❤️",
+                                 options: [.authenticationRequired])
         return UNNotificationCategory(identifier: AppConfiguration.Push.messageCategory,
-                                      actions: [reply] + reactions,
+                                      actions: [reply] + [like] + [dislike] + [heart],
                                       intentIdentifiers: [],
                                       options: [])
     }
