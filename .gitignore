@@ -1,14 +1,15 @@
-# =========================
-# macOS
-# =========================
+# ==========================================
+# macOS System Files
+# ==========================================
 .DS_Store
 .AppleDouble
 .LSOverride
-Icon
+Icon?
+._*
 
-# =========================
-# Xcode - Build & Cache
-# =========================
+# ==========================================
+# Xcode - Build Artifacts & Caches
+# ==========================================
 build/
 DerivedData/
 *.hmap
@@ -17,41 +18,50 @@ DerivedData/
 *.dSYM
 *.xcresult
 
-# =========================
-# Xcode - User Settings
-# =========================
+# ==========================================
+# Xcode - User-Specific Data
+# ==========================================
 xcuserdata/
-*.xcodeproj/xcuserdata/
-*.xcworkspace/xcuserdata/
+*.xcuserdatad/
 *.pbxuser
 *.mode1v3
 *.mode2v3
 *.perspectivev3
 *.xcuserstate
 
-# =========================
-# Secrets & Configurations
-# =========================
-*.xcconfig
+# ==========================================
+# Rust & Cargo (Matrix SDK Core)
+# ==========================================
+target/
+**/*.rs.bk
 
-# =========================
-# Swift Package Manager
-# =========================
+# ==========================================
+# Swift Package Manager (SPM)
+# ==========================================
 .build/
 .swiftpm/xcode/
 .swiftpm/configuration/
+.swiftpm/dependencies/
+!Package.resolved
 
-# =========================
-# CocoaPods (Optional)
-# =========================
+# ==========================================
+# CocoaPods
+# ==========================================
 Pods/
 /.bundle/
 vendor/
+!Podfile.lock
 
-# =========================
-# Fastlane (Optional)
-# =========================
+# ==========================================
+# Fastlane
+# ==========================================
 fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
+
+# ==========================================
+# Secrets & Configurations
+# ==========================================
+*.secret.xcconfig
+.env*
