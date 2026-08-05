@@ -10,10 +10,10 @@ struct RoomView: View {
     @Environment(UserSession.self) private var session
     @Environment(AppRouter.self) private var router
 
-    @State private var details: RoomDetailsModel? //all details about the room
+    @State private var details: RoomModel? //all details about the room
     @State private var errorMessage: String?
     @State private var profileTarget: ProfileTarget?
-    @State private var showMemberMenu = false
+    @State private var showRoomSettings = false
     @State private var reportTarget: TimelineModel.Message?
     @State private var editTarget: TimelineModel.Message?
     @State private var editContent: String = ""
@@ -102,23 +102,17 @@ struct RoomView: View {
                 .buttonStyle(.glass)
             }
         }
-        .task {
-            do {
-                let details = try session.roomDetails(for: roomId)
-                self.details = details
-                await details.start()
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
+        .openRoom(session, roomId: roomId, into: $details)
         // Suppresses notification banners for the room already on screen.
         .onAppear { router.visibleRoomId = roomId }
         .onDisappear { if router.visibleRoomId == roomId { router.visibleRoomId = nil } }
         .sheet(item: $profileTarget) { target in
             profileSheet(for: target)
         }
-        .sheet(isPresented: $showMemberMenu) {
-            memberMenu
+        .sheet(isPresented: $showRoomSettings) {
+            if let details {
+                RoomSettingsView(room: details)
+            }
         }
         .sheet(item: $reportTarget) { message in
             reportSheet(for: message)
@@ -149,43 +143,17 @@ struct RoomView: View {
         }
     }
     
-    /// Tapping the title (or holding anywhere in the room) opens the other
-    /// participant's profile directly for a DM, or a simple member picker
-    /// for group rooms.
+    /// Tapping the title (or holding anywhere in the room) opens the room's
+    /// settings. DMs get there too — `RoomSettingsView` shows them its own
+    /// variant, with the other person's controls instead of a member list.
     private func openTitleAction() {
-        guard let details else { return }
-        if details.isDirect, let heroId = details.directHeroId {
-            profileTarget = ProfileTarget(id: heroId)
-        } else {
-            showMemberMenu = true
-        }
+        guard details != nil else { return }
+        showRoomSettings = true
     }
     
     @ViewBuilder
     private func profileSheet(for target: ProfileTarget) -> some View {
         UserProfileView(userId: target.id, session: session, room: details?.room)
-    }
-    
-    @ViewBuilder
-    private var memberMenu: some View {
-        NavigationStack {
-            List(details?.members ?? []) { member in
-                Button {
-                    showMemberMenu = false
-                    profileTarget = ProfileTarget(id: member.id)
-                } label: {
-                    Text(member.name)
-                }
-            }
-            .navigationTitle("Members")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { showMemberMenu = false }
-                }
-            }
-            .task { await details?.loadMembers() }
-        }
     }
     
     /// The message directly above `index`, or nil when a day divider (or the top
@@ -275,7 +243,7 @@ struct RoomView: View {
     }
     
     private func editAction(for message: TimelineModel.Message) -> (() -> Void)? {
-        guard let details else {return nil}
+        guard details != nil else {return nil}
         if message.isOwn {
             return {
                 editTarget = message

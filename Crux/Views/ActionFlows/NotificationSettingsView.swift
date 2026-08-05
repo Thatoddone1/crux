@@ -53,7 +53,7 @@ struct NotificationSettingsView: View {
         .navigationTitle("Notifications")
         .task {
             await push.refresh()
-            let model = model ?? NotificationSettingsModel(client: session.client)
+            let model = model ?? NotificationSettingsModel(client: session.client, store: session.rooms)
             self.model = model
             await model.load()
         }

@@ -253,7 +253,7 @@ private let stackDemos = [
     CardStack(items: stackDemos, onDismiss: { _ in }, onOpen: { _ in }) { room, isFocused, onOpen in
         VStack(alignment: .leading, spacing: 8) {
             MountainCardHeader(roomName: room.name, avatarUrl: nil, unreadCount: 0, isFavorite: false,
-                               isDirect: true, isLowPriority: false, isMuted: false, isMentioned: false,
+                               isDirect: true, isLowPriority: false, notification: nil, isMentioned: false,
                                score: 0, breakdown: nil, isFocused: isFocused, onOpen: onOpen)
             MountainCard(messages: room.messages, isFocused: isFocused, onSend: { _ in },
                          composerFocus: $focus)

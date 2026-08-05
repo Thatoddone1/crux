@@ -68,16 +68,6 @@
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
-/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
-		6AEB5E953017D4400084E25C /* Exceptions for "Crux" folder in "Copy Bundle Resources" phase from "Crux" target */ = {
-			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
-			buildPhase = 6ACF62A02FFD725500CE8E5B /* Resources */;
-			membershipExceptions = (
-				Matrix/Rooms/RoomDetailsModel.swift,
-			);
-		};
-/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		6AAA000130200001000AAAA1 /* Shared */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
@@ -96,11 +86,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				6A4FEA3730000D4900849557 /* Exceptions for "Crux" folder in "Crux" target */,
-				6AEB5E953017D4400084E25C /* Exceptions for "Crux" folder in "Copy Bundle Resources" phase from "Crux" target */,
 			);
-			explicitFileTypes = {
-				Matrix/Rooms/RoomDetailsModel.swift = sourcecode.swift;
-			};
 			path = Crux;
 			sourceTree = "<group>";
 		};

@@ -10,18 +10,25 @@ import MatrixRustSDK
 /// every client you're signed in on, not just this device.
 @Observable
 final class NotificationSettingsModel {
-    private(set) var directMessages: RoomNotificationMode = .allMessages
-    private(set) var groupChats: RoomNotificationMode = .allMessages
+    var directMessages: RoomNotificationMode {
+        store.notificationDefaults.encryptedOneToOne
+    }
+    var groupChats: RoomNotificationMode {
+        store.notificationDefaults.encryptedGroup
+    }
+
     private(set) var mentions = true
     private(set) var invites = true
     private(set) var calls = true
     private(set) var isLoaded = false
 
     private let client: Client
+    private let store: RoomStore
     private var settings: NotificationSettings?
 
-    init(client: Client) {
+    init(client: Client, store: RoomStore) {
         self.client = client
+        self.store = store
     }
 
     func load() async {
@@ -33,8 +40,7 @@ final class NotificationSettingsModel {
             self.settings = settings
         }
 
-        directMessages = await settings.getDefaultRoomNotificationMode(isEncrypted: true, isOneToOne: true)
-        groupChats = await settings.getDefaultRoomNotificationMode(isEncrypted: true, isOneToOne: false)
+        await store.reloadNotificationDefaults()
         mentions = (try? await settings.isUserMentionEnabled()) ?? true
         invites = (try? await settings.isInviteForMeEnabled()) ?? true
         calls = (try? await settings.isCallEnabled()) ?? true
@@ -42,13 +48,11 @@ final class NotificationSettingsModel {
     }
 
     func setDirectMessages(_ mode: RoomNotificationMode) async {
-        directMessages = mode
-        await setDefaultMode(mode, isOneToOne: true)
+        await store.setDefaultNotificationMode(mode, isOneToOne: true)
     }
 
     func setGroupChats(_ mode: RoomNotificationMode) async {
-        groupChats = mode
-        await setDefaultMode(mode, isOneToOne: false)
+        await store.setDefaultNotificationMode(mode, isOneToOne: false)
     }
 
     func setMentions(_ enabled: Bool) async {
@@ -64,16 +68,6 @@ final class NotificationSettingsModel {
     func setCalls(_ enabled: Bool) async {
         calls = enabled
         try? await settings?.setCallEnabled(enabled: enabled)
-    }
-
-    /// Encrypted and unencrypted rooms are separate push rules, but that's not a
-    /// distinction anyone wants to configure, so both move together.
-    private func setDefaultMode(_ mode: RoomNotificationMode, isOneToOne: Bool) async {
-        for isEncrypted in [true, false] {
-            try? await settings?.setDefaultRoomNotificationMode(isEncrypted: isEncrypted,
-                                                                isOneToOne: isOneToOne,
-                                                                mode: mode)
-        }
     }
 }
 

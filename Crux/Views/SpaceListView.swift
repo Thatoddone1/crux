@@ -175,10 +175,18 @@ private struct SpaceRoomRow: View {
     private var isJoined: Bool { spaceRoom.state == .joined }
 
     var body: some View {
-        HStack {
+        HStack(spacing: 12) {
             avatarView
-            Text(spaceRoom.displayName)
-            Spacer()
+            VStack(alignment: .leading, spacing: 2) {
+                Text(spaceRoom.displayName)
+                    .font(.headline)
+                    .lineLimit(1)
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            Spacer(minLength: 0)
             if isJoining {
                 ProgressView()
             } else if !isJoined {
@@ -186,6 +194,7 @@ private struct SpaceRoomRow: View {
                     .buttonStyle(.bordered)
             }
         }
+        .padding(.vertical, 6)
         .opacity(isJoined || isJoining ? 1 : 0.5)
         .task {
             guard let url = spaceRoom.avatarUrl else { return }
@@ -193,16 +202,27 @@ private struct SpaceRoomRow: View {
         }
     }
 
+    /// The topic if there is one; otherwise the counts, which are the only other
+    /// thing `SpaceRoom` knows without joining.
+    private var subtitle: String {
+        if let topic = spaceRoom.topic, !topic.isEmpty { return topic }
+        let members = "\(spaceRoom.numJoinedMembers) \(spaceRoom.numJoinedMembers == 1 ? "member" : "members")"
+        guard spaceRoom.roomType == .space else { return members }
+        return "\(spaceRoom.childrenCount) rooms · \(members)"
+    }
+
     @ViewBuilder private var avatarView: some View {
         if let avatar {
             Image(uiImage: avatar)
                 .resizable()
                 .scaledToFill()
-                .frame(width: 28, height: 28)
+                .frame(width: 44, height: 44)
                 .clipShape(.circle)
         } else {
             Image(systemName: spaceRoom.roomType == .space ? "square.stack.3d.up.fill" : "bubble.left.fill")
-                .frame(width: 28, height: 28)
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .frame(width: 44, height: 44)
         }
     }
 
@@ -213,8 +233,4 @@ private struct SpaceRoomRow: View {
             isJoining = false
         }
     }
-}
-
-#Preview {
-    SpaceListView()
 }

@@ -21,6 +21,8 @@ enum RoomLookupError: LocalizedError {
 final class UserSession {
     let client: Client
     let userId: String
+    /// The one place room state lives; the list and every open room read from it.
+    let rooms: RoomStore
     let roomList: RoomListModel
     let spaces: SpaceListModel
     let verification: VerificationModel
@@ -34,15 +36,13 @@ final class UserSession {
     private let syncService: SyncService
     private let roomListService: RoomListService
 
-    ///cache the room details so it is not constatly remade (for rooms and mountain cards). Maybe a bit better for SDK connections and memory
-    private var roomDetailsCache: [String: RoomDetailsModel] = [:]
-
     init(client: Client) async throws {
         self.client = client
         userId = try client.userId()
         syncService = try await client.syncService().finish()
         roomListService = syncService.roomListService()
-        roomList = RoomListModel(service: roomListService)
+        rooms = RoomStore(client: client)
+        roomList = RoomListModel(service: roomListService, store: rooms)
         spaces = SpaceListModel(service: await client.spaceService(), roomListService: roomListService)
         verification = VerificationModel(client: client)
     }
@@ -54,6 +54,7 @@ final class UserSession {
         await client.enableAllSendQueues(enable: true)
         await syncService.start()
         await roomList.start()
+        await rooms.startNotifications()
         await spaces.start()
         await verification.start()
 
@@ -71,12 +72,13 @@ final class UserSession {
         try roomListService.room(roomId: id)
     }
 
-    
-    func roomDetails(for roomId: String) throws -> RoomDetailsModel {
-        if let existing = roomDetailsCache[roomId] { return existing }
-        let details = try RoomDetailsModel(session: self, roomId: roomId)
-        roomDetailsCache[roomId] = details
-        return details
+   
+    func roomModel(for roomId: String) throws -> RoomModel {
+        rooms.retain(try room(id: roomId))
+    }
+
+    func releaseRoom(_ roomId: String) {
+        rooms.release(roomId)
     }
 
     /// Sends without opening the room, for the notification's reply action.

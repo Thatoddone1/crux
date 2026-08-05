@@ -28,9 +28,9 @@ struct MountainView: View {
     
     private var model: MountainModel { session.mountain }
 
-    private var unread: [RoomListModel.Summary] { session.roomList.unread }
-    private var peakPile: [RoomListModel.Summary] { model.peak }
-    private var slopePile: [RoomListModel.Summary] { model.slope }
+    private var unread: [RoomModel] { session.roomList.unread }
+    private var peakPile: [RoomModel] { model.peak }
+    private var slopePile: [RoomModel] { model.slope }
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -74,15 +74,15 @@ struct MountainView: View {
 
     // MARK: - Pieces
 
-    private func deck(_ items: [RoomListModel.Summary]) -> some View {
+    private func deck(_ items: [RoomModel]) -> some View {
         CardStack(items: items, onDismiss: { summary in
             hasSeenSwipeHint = true      // they just learned the gesture
             model.dismiss(summary)       // drop from the pile...
-            Task { await session.roomList.markRead(summary) }   // ...and mark it read
+            Task { await summary.markRead() }   // ...and mark it read
         }, onOpen: { summary in
             path.append(summary.id)
         }) { summary, isFocused, onOpen in
-            MountainCardCell(summary: summary, score: model.score(for: summary.id),
+            MountainCardCell(room: summary, score: model.score(for: summary.id),
                              breakdown: model.breakdowns[summary.id],
                              isFocused: isFocused, onOpen: onOpen)
         }
@@ -100,7 +100,7 @@ struct MountainView: View {
 
    /// bar for each pile to open and close it
     private func header(_ target: Pile, title: String, icon: String,
-                        items: [RoomListModel.Summary]) -> some View {
+                        items: [RoomModel]) -> some View {
         let isOpen = effectiveExpanded == target
         return Button {
             withAnimation(.spring) { expanded = isOpen ? target.other : target }

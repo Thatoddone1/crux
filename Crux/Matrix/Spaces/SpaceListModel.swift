@@ -114,9 +114,8 @@ final class SpaceListModel {
         }
     }
 
-    /// Filters `summaries` down to rooms that don't belong to any joined space.
-    func orphaned(from summaries: [RoomListModel.Summary]) async -> [RoomListModel.Summary] {
-        var result: [RoomListModel.Summary] = []
+    func orphaned(from summaries: [RoomModel]) async -> [RoomModel] {
+        var result: [RoomModel] = []
         for summary in summaries {
             if let cached = orphanCache[summary.id] {
                 if cached { result.append(summary) }

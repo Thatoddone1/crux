@@ -115,6 +115,14 @@ final class TimelineModel {
         _ = try await timeline.paginateBackwards(numEvents: 30)
     }
 
+
+    func stop() {
+        listenerHandle = nil
+        timeline = nil
+        items = []
+        entries = []
+    }
+
     // MARK: - Actions
 
     /// Sends a Markdown message. This returns as soon as the message is queued:
@@ -252,8 +260,8 @@ final class TimelineModel {
         }?.id
     }
 
-    /// The text to show for a message, or nil for incompatible messages for now
-    private static func body(of kind: MsgLikeKind) -> String? {
+    
+    static func body(of kind: MsgLikeKind) -> String? {
         switch kind {
         case .message(let content): content.body
         case .sticker(let body, _, _): body

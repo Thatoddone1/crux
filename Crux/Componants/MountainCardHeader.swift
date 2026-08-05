@@ -15,7 +15,7 @@ struct MountainCardHeader: View {
     let isFavorite: Bool
     let isDirect: Bool
     let isLowPriority: Bool
-    let isMuted: Bool
+    let notification: RoomModel.NotificationLabel?
     let isMentioned: Bool
     let score: Int
     let breakdown: MountainModel.ScoreBreakdown?
@@ -38,12 +38,8 @@ struct MountainCardHeader: View {
                 }
             }
             HStack(spacing: 6) {
-                if isMentioned { Chip.Presets.mentioned }
-                if isFavorite { Chip.Presets.favorite }
-                if isDirect { Chip.Presets.direct }
-                else { Chip.Presets.group }
-                if isLowPriority { Chip.Presets.lowPriority }
-                if isMuted { Chip.Presets.muted }
+                RoomChips(isMentioned: isMentioned, isFavorite: isFavorite, isDirect: isDirect,
+                          isLowPriority: isLowPriority, notification: notification)
                 Spacer()
                 ScoreChip(score: score, breakdown: breakdown, isInteractive: isFocused)
             }
@@ -151,7 +147,7 @@ private struct ScoreBreakdownView: View {
             isFavorite: true,
             isDirect: false,
             isLowPriority: false,
-            isMuted: false,
+            notification: nil,
             isMentioned: true,
             score: 82,
             breakdown: .init(mention: 40, favorite: 30, directness: -10, lowPriority: 0, tone: 22),
@@ -164,7 +160,7 @@ private struct ScoreBreakdownView: View {
             isFavorite: false,
             isDirect: true,
             isLowPriority: true,
-            isMuted: true,
+            notification: .muted,
             isMentioned: false,
             score: 12,
             breakdown: .init(mention: 0, favorite: 0, directness: 10, lowPriority: -60, tone: 8),

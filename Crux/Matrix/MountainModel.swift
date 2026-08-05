@@ -10,7 +10,27 @@ import FoundationModels
 
 @Observable
 final class MountainModel {
-    typealias Summary = RoomListModel.Summary
+    typealias Summary = RoomModel
+
+    /// The handful of values scoring needs, lifted off a room on the main actor so
+    /// the scoring itself — which is mostly waiting on an LLM — can run off it.
+    private struct ScoringInput {
+        let id: String
+        let room: Room
+        let isMentioned: Bool
+        let isFavorite: Bool
+        let isDirect: Bool
+        let isLowPriority: Bool
+
+        @MainActor init(_ summary: Summary) {
+            id = summary.id
+            room = summary.room
+            isMentioned = summary.unreadMentions > 0
+            isFavorite = summary.isFavorite
+            isDirect = summary.isDirect
+            isLowPriority = summary.isLowPriority
+        }
+    }
 
     /// Where a room's score came from, for the tap-to-explain popover.
     struct ScoreBreakdown {
@@ -69,11 +89,14 @@ final class MountainModel {
     private func load(_ unread: [Summary]) async {
         phase = .loading
         dismissed.removeAll()
-        let sorted = await Self.scoreAll(unread).sorted { $0.breakdown.total > $1.breakdown.total }
-        for item in sorted { breakdowns[item.summary.id] = item.breakdown }
-        peak = sorted.filter { $0.breakdown.total >= Self.peakThreshold }.map(\.summary)
-        slope = sorted.filter { $0.breakdown.total < Self.peakThreshold }.map(\.summary)
-        placed = Set(sorted.map(\.summary.id))
+        let scored = await Self.scoreAll(unread.map(ScoringInput.init))
+        let byRoom = Dictionary(uniqueKeysWithValues: unread.map { ($0.id, $0) })
+        let sorted = scored.sorted { $0.breakdown.total > $1.breakdown.total }
+
+        for item in sorted { breakdowns[item.id] = item.breakdown }
+        peak = sorted.filter { $0.breakdown.total >= Self.peakThreshold }.compactMap { byRoom[$0.id] }
+        slope = sorted.filter { $0.breakdown.total < Self.peakThreshold }.compactMap { byRoom[$0.id] }
+        placed = Set(sorted.map(\.id))
         builtAt = Date()
         phase = .ready
     }
@@ -84,11 +107,13 @@ final class MountainModel {
         let fresh = unread.filter { !placed.contains($0.id) && !dismissed.contains($0.id) }
         guard !fresh.isEmpty else { return }
         fresh.forEach { placed.insert($0.id) }   // reserve so churn can't double-add
+        let byRoom = Dictionary(uniqueKeysWithValues: fresh.map { ($0.id, $0) })
         Task { @MainActor in
-            for item in await Self.scoreAll(fresh) {
-                breakdowns[item.summary.id] = item.breakdown
-                if item.breakdown.total >= Self.peakThreshold { peak.append(item.summary) }
-                else { slope.append(item.summary) }
+            for item in await Self.scoreAll(fresh.map(ScoringInput.init)) {
+                guard let room = byRoom[item.id] else { continue }
+                breakdowns[item.id] = item.breakdown
+                if item.breakdown.total >= Self.peakThreshold { peak.append(room) }
+                else { slope.append(room) }
             }
         }
     }
@@ -105,14 +130,14 @@ final class MountainModel {
 
     // MARK: - Scoring
 
-    private struct Scored { let summary: Summary; let breakdown: ScoreBreakdown }
+    private struct Scored { let id: String; let breakdown: ScoreBreakdown }
 
     /// Scores rooms concurrently. `Room` is `Sendable` and `latestEvent()` is a
     /// one-shot read, so this needs no main-actor hops or timeline subscriptions.
-    private nonisolated static func scoreAll(_ summaries: [Summary]) async -> [Scored] {
+    private nonisolated static func scoreAll(_ inputs: [ScoringInput]) async -> [Scored] {
         await withTaskGroup(of: Scored.self) { group in
-            for summary in summaries {
-                group.addTask { Scored(summary: summary, breakdown: await scoreBreakdown(summary)) }
+            for input in inputs {
+                group.addTask { Scored(id: input.id, breakdown: await scoreBreakdown(input)) }
             }
             var out: [Scored] = []
             for await scored in group { out.append(scored) }
@@ -120,15 +145,15 @@ final class MountainModel {
         }
     }
 
-    private nonisolated static func scoreBreakdown(_ summary: Summary) async -> ScoreBreakdown {
+    private nonisolated static func scoreBreakdown(_ input: ScoringInput) async -> ScoreBreakdown {
         let session = LanguageModelSession()
-        let response = try? await session.respond(to: prompt(for: await latestLine(of: summary.room)),
+        let response = try? await session.respond(to: prompt(for: await latestLine(of: input.room)),
                                                   generating: Int.self)
         return ScoreBreakdown(
-            mention: summary.unreadMentions > 0 ? 40 : 0,   // a direct mention is high priority
-            favorite: summary.isFavorite ? 30 : 0,
-            directness: summary.isDirect ? 10 : -10,
-            lowPriority: summary.isLowPriority ? -60 : 0,
+            mention: input.isMentioned ? 40 : 0,   // a direct mention is high priority
+            favorite: input.isFavorite ? 30 : 0,
+            directness: input.isDirect ? 10 : -10,
+            lowPriority: input.isLowPriority ? -60 : 0,
             tone: response?.content ?? 0
         )
     }

@@ -8,60 +8,22 @@ import MatrixRustSDK
 
 /// up to date list of all the rooms for a given user (session)
 @Observable
+@MainActor
 final class RoomListModel {
-    
-    //a single summary of a room (NOT THE same as RoomDetailsModel, which holds in depth details, this is just sort of an overview)
-    struct Summary: Identifiable {
-        let id: String
-        let name: String
-        /// Unread message count (all messages since your read marker).
-        let unreadMessages: Int
-        /// Unread *notifications*—this accounts for any notification settings
-        let unreadNotifications: Int
-        /// Unread events that mention/highlight you specifically — the SDK's own
-        /// count, not something we compute by scanning messages ourselves.
-        let unreadMentions: Int
-        /// Set when you (or another client) explicitly marked the room unread.
-        let isMarkedUnread: Bool
 
-        let isDirect: Bool
-        let isFavorite: Bool
-        let isLowPriority: Bool
-        let isMuted: Bool
+    ///a list of rooms (called summaries, each a RoomModel)
+    private(set) var summaries: [RoomModel] = []
+    var unread: [RoomModel] { summaries.filter(\.hasUnread) }
 
-        /// Whether we've joined this room or are only invited to it. Invites live
-        /// in the same list but can't be entered until accepted.
-        let membership: Membership
-
-        ///MXC for room's avatar/picture
-        let avatarUrl: String?
-
-        let room: Room
-
-        /// if there is at least one unread message in the entire room list
-        var hasUnread: Bool { unreadMessages > 0 || isMarkedUnread }
-
-        var isInvite: Bool { membership == .invited }
-    }
-
-    private(set) var summaries: [Summary] = []
-    var unread: [Summary] { summaries.filter(\.hasUnread) }
-
-    @MainActor
     func awaitRoomsReady() async {
         for _ in 0..<30 {
-            if !rooms.isEmpty && roomInfo.count >= rooms.count { return }
+            if !summaries.isEmpty && summaries.allSatisfy({ $0.info != nil }) { return }
             try? await Task.sleep(for: .milliseconds(100))
         }
     }
 
-    /// Marks a room read, clearing both its unread receipts and any manual unread flag.
-    func markRead(_ summary: Summary) async {
-        try? await summary.room.markAsRead(receiptType: .read)
-        if summary.isMarkedUnread { try? await summary.room.setUnreadFlag(newValue: false) }
-    }
-
     private let service: RoomListService
+    private let store: RoomStore
     private var rooms: [Room] = []
 
     // These must all be retained for as long as we want updates. Releasing any
@@ -72,11 +34,13 @@ final class RoomListModel {
     private var controller: RoomListDynamicEntriesController?
     private var entriesHandle: TaskHandle?
 
-    private var roomInfo: [String: RoomInfo] = [:]
-    private var infoHandles: [String: TaskHandle] = [:]
+    /// The rooms this list currently holds a store subscription for, so retains
+    /// and releases stay balanced as the list churns.
+    private var retained: Set<String> = []
 
-    init(service: RoomListService) {
+    init(service: RoomListService, store: RoomStore) {
         self.service = service
+        self.store = store
     }
 
     func start() async {
@@ -142,58 +106,31 @@ final class RoomListModel {
             case .reset(let values): rooms = values
             }
         }
-        syncInfoSubscriptions()
-        rebuildSummaries()
+        syncModels()
     }
 
-    /// Rebuilds `summaries` from the current rooms and whatever unread info we have cached so far.
-    private func rebuildSummaries() {
-        summaries = rooms.map { room in
-            let info = roomInfo[room.id()]
-            return Summary(id: room.id(),
-                           name: room.displayName() ?? room.id(),
-                           unreadMessages: Int(info?.numUnreadMessages ?? 0),
-                           unreadNotifications: Int(info?.numUnreadNotifications ?? 0),
-                           unreadMentions: Int(info?.numUnreadMentions ?? 0),
-                           isMarkedUnread: info?.isMarkedUnread ?? false,
-                           isDirect: info?.isDirect ?? false,
-                           isFavorite: info?.isFavourite ?? false, //this uses the british spelling since the SDK does. Sorry for the inconsistancy.
-                           isLowPriority: info?.isLowPriority ?? false,
-                           isMuted: info?.cachedUserDefinedNotificationMode == .mute,
-                           membership: info?.membership ?? room.membership(),
-                           avatarUrl: room.avatarUrl() ?? info?.heroes.first?.avatarUrl,
-                           room: room)
-        }
-    }
-
-    /// Keeps exactly one room-info subscription per room in the list: adds one
-    /// for each new room, and drops the subscription (and cached info) for any
-    /// room that has left, so handles don't leak as the list changes.
-    private func syncInfoSubscriptions() {
+    /// Balances this list's holds against the rooms it now lists, then rebuilds
+    /// `summaries`. A release only frees the room if nothing else — an open room,
+    /// a mountain card — is still holding it.
+    private func syncModels() {
         let currentIDs = Set(rooms.map { $0.id() })
 
-        for id in infoHandles.keys where !currentIDs.contains(id) {
-            infoHandles[id] = nil
-            roomInfo[id] = nil
+        for id in retained.subtracting(currentIDs) {
+            store.release(id)
+            retained.remove(id)
+        }
+        for room in rooms where !retained.contains(room.id()) {
+            store.retain(room)
+            retained.insert(room.id())
         }
 
-        for room in rooms where infoHandles[room.id()] == nil {
-            let id = room.id()
-            let listener = RoomInfoBridge { info in
-                Task { @MainActor [weak self] in
-                    self?.roomInfo[id] = info
-                    self?.rebuildSummaries()
-                }
-            }
-            infoHandles[id] = room.subscribeToRoomInfoUpdates(listener: listener)
-
-            // Seeds the current snapshot: the subscription above only pushes future changes.
-            Task { @MainActor [weak self] in
-                guard let info = try? await room.roomInfo() else { return }
-                self?.roomInfo[id] = info
-                self?.rebuildSummaries()
-            }
-        }
+        // `@Observable` fires on set, not on change, so assigning an identical
+        // array would re-run the whole list body — the exact thing storing this
+        // is meant to avoid. Same objects in the same order means nothing about
+        // the *list* changed; each row observes its own room for the rest.
+        let next = rooms.compactMap { store.model(for: $0.id()) }
+        guard next.count != summaries.count || !zip(next, summaries).allSatisfy({ $0 === $1 }) else { return }
+        summaries = next
     }
 }
 
@@ -212,7 +149,7 @@ nonisolated final class RoomListEntriesBridge: RoomListEntriesListener {
 }
 
 /// Forwards one room's info updates (unread counts, name, …) from the SDK's
-/// background threads. Not private: reused by RoomDetailsModel.
+/// background threads. Not private: this is what `RoomStore` subscribes with.
 nonisolated final class RoomInfoBridge: RoomInfoListener {
     private let handler: @Sendable (RoomInfo) -> Void
 

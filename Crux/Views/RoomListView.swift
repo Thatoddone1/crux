@@ -21,16 +21,20 @@ struct RoomListView: View {
         @Bindable var router = router
 
         NavigationStack(path: $router.roomsPath) {
-            List(session.roomList.summaries) { summary in
+            List(session.roomList.summaries) { room in
                 Group {
-                    if summary.isInvite {
-                        RoomInviteRow(summary: summary)
+                    if room.isInvite {
+                        RoomInviteRow(room: room)
                     } else {
-                        NavigationLink(summary.name, value: RoomListRoute.room(id: summary.id))
+                        NavigationLink(value: RoomListRoute.room(id: room.id)) {
+                            RoomRow(room: room)
+                        }
+                        .roomContextMenu(room)
                     }
                 }
-                .leaveSwipe(session, roomId: summary.id, decline: summary.isInvite)
+                .leaveSwipe(session, roomId: room.id, decline: room.isInvite)
             }
+            .listStyle(.plain)
             .navigationTitle("Rooms")
             .overlay {
                 if session.roomList.summaries.isEmpty {
@@ -66,15 +70,62 @@ struct RoomListView: View {
     }
 }
 
+/// A joined room: avatar, name, the last thing said in it, and whatever chips apply.
+private struct RoomRow: View {
+    let room: RoomModel
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            AvatarView(avatarUrl: room.avatarUrl, size: 52, unreadCount: room.unreadMessages)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(room.name)
+                        .font(.headline)
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                    if let latest = room.latestMessage {
+                        Text(latest.date, style: .relative)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                if let latest = room.latestMessage {
+                    Text(preview(latest))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .opacity(latest.isPending ? 0.5 : 1)
+                }
+                RoomChips(room)
+            }
+        }
+        .padding(.vertical, 6)
+    }
+
+    
+    private func preview(_ latest: RoomModel.LatestMessage) -> AttributedString {
+        let body = AttributedString(latest.body)
+        guard !(room.isOneToOne && !latest.isOwn) else { return body }
+        var name = AttributedString(latest.isOwn ? "You: " : "\(latest.sender): ")
+        name.foregroundColor = .primary
+        return name + body
+    }
+}
+
 /// An invited-but-not-joined room: shown dimmed with a Join button rather than
 /// a navigation link, since the room can't be opened until the invite's accepted.
 private struct RoomInviteRow: View {
-    let summary: RoomListModel.Summary
+    let room: RoomModel
     @State private var isJoining = false
-    
+
     var body: some View {
-        HStack {
-            Text(summary.name)
+        HStack(spacing: 12) {
+            AvatarView(avatarUrl: room.avatarUrl, size: 52)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(room.name).font(.headline).lineLimit(1)
+                Text("Invited you").font(.subheadline).foregroundStyle(.secondary)
+            }
             Spacer()
             if isJoining {
                 ProgressView()
@@ -83,13 +134,14 @@ private struct RoomInviteRow: View {
                     .buttonStyle(.bordered)
             }
         }
+        .padding(.vertical, 6)
         .opacity(isJoining ? 1 : 0.5)
     }
-    
+
     private func join() {
         isJoining = true
         Task {
-            try? await summary.room.join()
+            try? await room.join()
             isJoining = false
         }
     }
