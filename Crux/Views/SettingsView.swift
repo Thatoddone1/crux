@@ -25,10 +25,19 @@ struct SettingsView: View {
     }
     
     @State var environment: String = "Loading...."
-    
+    @State private var showProfileSettings = false
+
     var body: some View {
         NavigationStack {
             List{
+                Section {
+                    Button {
+                        showProfileSettings = true
+                    } label: {
+                        profileRow
+                    }
+                    .foregroundStyle(.primary)
+                }
                 Section() {
                     Button("Log out", role: .destructive) {
                         Task { await matrix.logOut() }
@@ -86,8 +95,29 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            .sheet(isPresented: $showProfileSettings) {
+                ProfileSettingsView()
+            }
         }
 
+    }
+
+    private var profileRow: some View {
+        HStack(spacing: 12) {
+            AvatarView(avatarUrl: session.avatarUrl, size: 56)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(session.displayName ?? session.userId)
+                    .font(.headline)
+                Text(session.userId)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, 4)
     }
 }
 

@@ -68,6 +68,26 @@ final class UserSession {
         await syncService.stop()
     }
 
+    // MARK: Own profile
+
+    @MainActor
+    func setDisplayName(_ name: String) async throws {
+        try await client.setDisplayName(name: name)
+        displayName = name
+    }
+
+    @MainActor
+    func setAvatar(data: Data, mimeType: String) async throws {
+        try await client.uploadAvatar(mimeType: mimeType, data: data)
+        avatarUrl = try? await client.getProfile(userId: userId).avatarUrl
+    }
+
+    @MainActor
+    func removeAvatar() async throws {
+        try await client.removeAvatar()
+        avatarUrl = nil
+    }
+
     func room(id: String) throws -> Room {
         try roomListService.room(roomId: id)
     }
