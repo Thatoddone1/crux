@@ -62,7 +62,7 @@ struct SpaceListView: View {
 
 /// The page for a single top-level space: its own children, expandable inline
 /// from here on down (SpaceNodeRow), matching the tree's natural recursion.
-private struct SpaceDetailView: View {
+struct SpaceDetailView: View {
     let node: SpaceNode
 
     var body: some View {

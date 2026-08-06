@@ -31,9 +31,9 @@ struct ContentView: View {
                     Tab("Spaces", systemImage: "person.3.fill", value: AppRouter.Tab.spaces) {
                         SpaceListView()
                     }
-                    //Tab(role: .search) {
-                        //SearchView()
-                    //}
+                    Tab(value: AppRouter.Tab.search, role: .search) {
+                        SearchView()
+                    }
                 }
                 .environment(session)
                 // A tapped notification waits here until there's a session to open it with.

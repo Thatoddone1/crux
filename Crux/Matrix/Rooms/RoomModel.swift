@@ -79,6 +79,8 @@ final class RoomModel: Identifiable {
     var name: String { info?.displayName ?? fallbackName }
     var avatarUrl: String? { info?.avatarUrl ?? fallbackAvatarUrl ?? heroes.first?.avatarUrl }
     var topic: String? { info?.topic }
+    var canonicalAlias: String? { info?.canonicalAlias }
+    var alternativeAliases: [String] { info?.alternativeAliases ?? [] }
 
     /// Unread message count (all messages since your read marker).
     var unreadMessages: Int { Int(info?.numUnreadMessages ?? 0) }

@@ -10,7 +10,7 @@ import SwiftUI
 @Observable
 final class AppRouter {
     enum Tab: Hashable {
-        case mountain, rooms, spaces
+        case mountain, rooms, spaces, search
     }
 
     var selectedTab: Tab = .mountain
