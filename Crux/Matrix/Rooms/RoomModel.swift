@@ -358,8 +358,9 @@ extension RoomModel.LatestMessage {
     }
 
     private static func body(of content: TimelineItemContent) -> String? {
-        guard case .msgLike(let msgLike) = content,
-              let body = TimelineModel.body(of: msgLike.kind) else { return nil }
+        guard case .msgLike(let msgLike) = content else { return nil }
+        if case .other = msgLike.kind { return nil }
+        let body = TimelineModel.body(of: msgLike.kind)
         let flattened = body.split(whereSeparator: \.isNewline).joined(separator: " ")
         let trimmed = flattened.trimmingCharacters(in: .whitespaces)
         return trimmed.isEmpty ? nil : trimmed

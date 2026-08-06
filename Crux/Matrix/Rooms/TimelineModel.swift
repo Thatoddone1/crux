@@ -51,6 +51,8 @@ final class TimelineModel {
         let replyTo: ReplyPreview?
         /// The file attached to this message, or nil for a plain text one.
         let media: MediaAttachment?
+        ///when crux cant show message as text or other type (like image).
+        let notice: Notice?
 
         /// Identifies the message to the SDK for edits, reactions and redaction.
         /// It's an event id for messages the server has accepted, or a local
@@ -97,6 +99,17 @@ final class TimelineModel {
         let height: UInt64?
 
         var isImage: Bool { kind == .image }
+    }
+
+    /// A compact explanation shown in place of a message's body. Tapping it
+    /// reveals `detail`.
+    struct Notice {
+        let icon: String
+        let title: String
+        let detail: String
+        /// True for a deleted message, whose leftover reactions (if the SDK
+        /// still reports any) shouldn't be shown alongside it.
+        var isRedaction: Bool = false
     }
 
     /// One emoji reaction, aggregated across everyone who used it.
@@ -233,8 +246,7 @@ final class TimelineModel {
     }
 
     private func message(from item: TimelineItem, event: EventTimelineItem) -> Message? {
-        guard case .msgLike(let content) = event.content,
-              let body = Self.body(of: content.kind) else { return nil }
+        guard case .msgLike(let content) = event.content else { return nil }
 
         let reactions = content.reactions.map { reaction in
             Reaction(key: reaction.key,
@@ -246,7 +258,7 @@ final class TimelineModel {
                        sender: Self.displayName(of: event),
                        senderId: event.sender,
                        senderAvatarUrl: Self.avatarUrl(of: event),
-                       body: body,
+                       body: Self.body(of: content.kind),
                        date: Self.date(from: event.timestamp),
                        isOwn: event.isOwn,
                        isEdited: Self.isEdited(content.kind),
@@ -257,6 +269,7 @@ final class TimelineModel {
                        canReply: event.canBeRepliedTo,
                        replyTo: Self.replyPreview(of: content.inReplyTo),
                        media: Self.media(of: content.kind),
+                       notice: Self.notice(of: content.kind),
                        itemID: event.eventOrTransactionId)
     }
 
@@ -271,7 +284,7 @@ final class TimelineModel {
         }
         var name = sender
         if case .ready(let displayName, _, _) = profile, let displayName { name = displayName }
-        return ReplyPreview(eventId: eventId, senderId: sender, sender: name, body: body(of: msgLike.kind))
+        return ReplyPreview(eventId: eventId, senderId: sender, sender: name, body: Self.body(of: msgLike.kind))
     }
 
     /// Finds the entry holding `eventId`, for scrolling to a reply's target.
@@ -285,13 +298,90 @@ final class TimelineModel {
     }
 
     
-    static func body(of kind: MsgLikeKind) -> String? {
+    /// Plain-text form of a message, for reply chips and as the `Message.body`
+    /// fallback. Always succeeds, even for kinds the timeline shows as a `Notice`.
+    static func body(of kind: MsgLikeKind) -> String {
         switch kind {
         case .message(let content): content.body
         case .sticker(let body, _, _): body
-        case .redacted: "(message deleted)"
-        case .unableToDecrypt: "(unable to decrypt, please verify in settings!)"
-        case .poll, .other, .liveLocation: nil
+        case .redacted: "Message deleted"
+        case .unableToDecrypt: "Unable to decrypt"
+        case .poll(let question, _, _, _, _, _, _): "Poll: \(question)"
+        case .liveLocation: "Live location"
+        case .other(let eventType): "Unsupported message (\(Self.label(for: eventType)))"
+        }
+    }
+
+    /// Explains a message the timeline can't show as normal text. Nil for
+    /// ordinary text messages and images/stickers, which render as usual.
+    private static func notice(of kind: MsgLikeKind) -> Notice? {
+        switch kind {
+        case .redacted:
+            return Notice(icon: "trash", title: "Message deleted",
+                          detail: "This message was removed by its sender or a room moderator.",
+                          isRedaction: true)
+        case .unableToDecrypt(let msg):
+            return Notice(icon: "lock.trianglebadge.exclamationmark", title: "Unable to decrypt",
+                          detail: Self.explanation(for: msg))
+        case .poll(let question, _, _, _, _, _, _):
+            return Notice(icon: "chart.bar", title: "Poll: \(question)",
+                          detail: "Polls aren't supported in Crux yet — open this room in another client to vote.")
+        case .liveLocation:
+            return Notice(icon: "location", title: "Live location",
+                          detail: "Live location sharing isn't supported in Crux yet.")
+        case .other(let eventType):
+            return Notice(icon: "questionmark.square", title: "Unsupported message",
+                          detail: "Crux doesn't know how to show this yet (\(Self.label(for: eventType))).")
+        case .message, .sticker:
+            return nil
+        }
+    }
+
+    /// A short, human name for an event type the timeline falls back to a notice for.
+    private static func label(for eventType: MessageLikeEventType) -> String {
+        switch eventType {
+        case .callInvite, .callAnswer, .callCandidates, .callHangup, .callNegotiate,
+             .callNotify, .callReject, .callSdpStreamMetadataChanged, .callSelectAnswer,
+             .rtcDecline, .rtcNotification:
+            "call"
+        case .keyVerificationAccept, .keyVerificationCancel, .keyVerificationDone,
+             .keyVerificationKey, .keyVerificationMac, .keyVerificationReady, .keyVerificationStart:
+            "verification"
+        case .pollEnd, .pollResponse, .unstablePollEnd, .unstablePollResponse, .unstablePollStart:
+            "poll"
+        case .beacon, .location:
+            "location"
+        case .other(let raw):
+            raw
+        default:
+            "unknown type"
+        }
+    }
+
+    /// A plain-language reason for a UTD, from the SDK's best guess at its cause.
+    private static func explanation(for msg: EncryptedMessage) -> String {
+        guard case .megolmV1AesSha2(_, let cause) = msg else {
+            return "This message couldn't be decrypted."
+        }
+        switch cause {
+        case .sentBeforeWeJoined:
+            return "Sent before you joined this room, so your device never received the keys."
+        case .verificationViolation:
+            return "Sent by someone whose identity has changed since you last verified them."
+        case .unsignedDevice:
+            return "Sent from a device that isn't signed by its owner."
+        case .unknownDevice:
+            return "Sent from a device Crux can't verify — it may have since been removed."
+        case .historicalMessageAndBackupIsDisabled:
+            return "Sent before this device existed, and key backup is turned off."
+        case .historicalMessageAndDeviceIsUnverified:
+            return "Sent before this device existed — verify this device in Settings to retrieve the keys."
+        case .withheldForUnverifiedOrInsecureDevice:
+            return "The sender withheld the keys because this device doesn't meet their security requirements."
+        case .withheldBySender:
+            return "The sender didn't share the keys with this device."
+        case .unknown:
+            return "Crux doesn't have an explanation for this one — it may be a temporary sync issue."
         }
     }
 
@@ -385,11 +475,12 @@ extension TimelineModel.Message {
                        reactions: [TimelineModel.Reaction] = [],
                        mentions: Mentions? = nil,
                        replyTo: TimelineModel.ReplyPreview? = nil,
-                       media: TimelineModel.MediaAttachment? = nil) -> Self {
+                       media: TimelineModel.MediaAttachment? = nil,
+                       notice: TimelineModel.Notice? = nil) -> Self {
         .init(id: id, sender: sender, senderId: senderId, senderAvatarUrl: senderAvatarUrl, body: body, date: Date(),
               isOwn: isOwn, isEdited: isEdited, sendState: sendState,
               reactions: reactions, mentions: mentions, isEditable: isOwn, canReply: true,
-              replyTo: replyTo, media: media, itemID: .eventId(eventId: id))
+              replyTo: replyTo, media: media, notice: notice, itemID: .eventId(eventId: id))
     }
 }
 

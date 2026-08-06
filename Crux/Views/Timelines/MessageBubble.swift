@@ -38,6 +38,11 @@ struct MessageBubble: View {
         return media.caption != nil
     }
 
+    ///dont show for deleted message
+    private var showsReactions: Bool {
+        message.notice?.isRedaction != true
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             if showsHeader {
@@ -47,29 +52,33 @@ struct MessageBubble: View {
                     .padding(.leading, 4)
             }
 
-            if let media = message.media {
-                MediaAttachmentView(media: media,
-                                    maxHeight: mediaMaxHeight,
-                                    allowsFullScreen: allowsFullScreenMedia)
-                    .opacity(message.sendState == .sending ? 0.6 : 1)
-                    .padding(.top, 4)
-            }
-
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                if showsBodyText {
-                    Text(LocalizedStringKey(message.body))
-                        .lineLimit(maxLines)
-                        // dim while queued, confirmed by SDK and updated
+            if let notice = message.notice {
+                NoticeRow(notice: notice, timestamp: message.date)
+            } else {
+                if let media = message.media {
+                    MediaAttachmentView(media: media,
+                                        maxHeight: mediaMaxHeight,
+                                        allowsFullScreen: allowsFullScreenMedia)
                         .opacity(message.sendState == .sending ? 0.6 : 1)
+                        .padding(.top, 4)
                 }
-                Spacer(minLength: 8)
-                Text(message.date, format: .dateTime.hour().minute())
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .monospacedDigit()
+
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    if showsBodyText {
+                        Text(LocalizedStringKey(message.body))
+                            .lineLimit(maxLines)
+                            // dim while queued, confirmed by SDK and updated
+                            .opacity(message.sendState == .sending ? 0.6 : 1)
+                    }
+                    Spacer(minLength: 8)
+                    Text(message.date, format: .dateTime.hour().minute())
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .monospacedDigit()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
 
             if message.isEdited {
                 Text("edited")
@@ -83,7 +92,7 @@ struct MessageBubble: View {
                     .foregroundStyle(.red)
             }
 
-            if !message.reactions.isEmpty {
+            if showsReactions, !message.reactions.isEmpty {
                 HStack(spacing: 4) {
                     ForEach(message.reactions) { reaction in
                         Button("\(reaction.key) \(reaction.count)") {
@@ -208,6 +217,14 @@ struct MessageBubble: View {
         MessageBubble(message: .sample(sender: "PersonA", senderId: "@a:example.org",
                                        body: "route-notes.pdf",
                                        media: .sample(kind: .file, filename: "route-notes.pdf")))
+
+        MessageBubble(message: .sample(sender: "PersonA", senderId: "@a:example.org", body: "Message deleted",
+            notice: .init(icon: "trash", title: "Message deleted",
+                         detail: "This message was removed by its sender or a room moderator.")))
+
+        MessageBubble(message: .sample(sender: "PersonB", senderId: "@b:example.org", body: "Unable to decrypt",
+            notice: .init(icon: "lock.trianglebadge.exclamationmark", title: "Unable to decrypt",
+                         detail: "Sent before this device existed — verify this device in Settings to retrieve the keys.")))
     }
     .padding()
 }
