@@ -42,7 +42,9 @@ struct MountainCard: View {
                                       { replyTarget = message; composerFocus.wrappedValue = true }
                                   },
                                   showsHeader: message.startsGroup(after: index > 0 ? messages[index - 1] : nil),
-                                  maxLines: 3)
+                                  maxLines: 3,
+                                  mediaMaxHeight: 120,
+                                  allowsFullScreenMedia: false)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

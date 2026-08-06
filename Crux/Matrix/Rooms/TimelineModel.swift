@@ -49,6 +49,8 @@ final class TimelineModel {
         let canReply: Bool
         /// The message this one answers, or nil if it isn't a reply.
         let replyTo: ReplyPreview?
+        /// The file attached to this message, or nil for a plain text one.
+        let media: MediaAttachment?
 
         /// Identifies the message to the SDK for edits, reactions and redaction.
         /// It's an event id for messages the server has accepted, or a local
@@ -74,6 +76,27 @@ final class TimelineModel {
         let senderId: String?
         let sender: String?
         let body: String?
+    }
+
+    struct MediaAttachment: Identifiable {
+        enum Kind {
+            case image, video, audio, file
+        }
+
+        /// The attachment's mxc URL.
+        let id: String
+        let kind: Kind
+        ///attachment itself including all the encryption keys
+        let source: MediaSource
+        ///small preview
+        let thumbnailSource: MediaSource?
+        let filename: String
+        let caption: String?
+        ///reserve space before image comes
+        let width: UInt64?
+        let height: UInt64?
+
+        var isImage: Bool { kind == .image }
     }
 
     /// One emoji reaction, aggregated across everyone who used it.
@@ -233,6 +256,7 @@ final class TimelineModel {
                        isEditable: event.isEditable,
                        canReply: event.canBeRepliedTo,
                        replyTo: Self.replyPreview(of: content.inReplyTo),
+                       media: Self.media(of: content.kind),
                        itemID: event.eventOrTransactionId)
     }
 
@@ -268,6 +292,45 @@ final class TimelineModel {
         case .redacted: "(message deleted)"
         case .unableToDecrypt: "(unable to decrypt, please verify in settings!)"
         case .poll, .other, .liveLocation: nil
+        }
+    }
+
+    /// get attachment from message, or nil if it's text-only
+    private static func media(of kind: MsgLikeKind) -> MediaAttachment? {
+        switch kind {
+        case .sticker(_, let info, let source):
+            return MediaAttachment(id: source.url(), kind: .image, source: source,
+                                   thumbnailSource: info.thumbnailSource,
+                                   filename: "", caption: nil, width: info.width, height: info.height)
+
+        case .message(let content):
+            switch content.msgType {
+            case .image(let image):
+                return MediaAttachment(id: image.source.url(), kind: .image, source: image.source,
+                                       thumbnailSource: image.info?.thumbnailSource,
+                                       filename: image.filename, caption: image.caption,
+                                       width: image.info?.width, height: image.info?.height)
+            case .video(let video):
+                return MediaAttachment(id: video.source.url(), kind: .video, source: video.source,
+                                       thumbnailSource: video.info?.thumbnailSource,
+                                       filename: video.filename, caption: video.caption,
+                                       width: video.info?.width, height: video.info?.height)
+            case .audio(let audio):
+                return MediaAttachment(id: audio.source.url(), kind: .audio, source: audio.source,
+                                       thumbnailSource: nil,
+                                       filename: audio.filename, caption: audio.caption,
+                                       width: nil, height: nil)
+            case .file(let file):
+                return MediaAttachment(id: file.source.url(), kind: .file, source: file.source,
+                                       thumbnailSource: file.info?.thumbnailSource,
+                                       filename: file.filename, caption: file.caption,
+                                       width: nil, height: nil)
+            default:
+                return nil
+            }
+
+        default:
+            return nil
         }
     }
 
@@ -321,11 +384,29 @@ extension TimelineModel.Message {
                        sendState: TimelineModel.SendState = .sent,
                        reactions: [TimelineModel.Reaction] = [],
                        mentions: Mentions? = nil,
-                       replyTo: TimelineModel.ReplyPreview? = nil) -> Self {
+                       replyTo: TimelineModel.ReplyPreview? = nil,
+                       media: TimelineModel.MediaAttachment? = nil) -> Self {
         .init(id: id, sender: sender, senderId: senderId, senderAvatarUrl: senderAvatarUrl, body: body, date: Date(),
               isOwn: isOwn, isEdited: isEdited, sendState: sendState,
               reactions: reactions, mentions: mentions, isEditable: isOwn, canReply: true,
-              replyTo: replyTo, itemID: .eventId(eventId: id))
+              replyTo: replyTo, media: media, itemID: .eventId(eventId: id))
+    }
+}
+
+extension TimelineModel.MediaAttachment {
+    static func sample(kind: Kind = .image,
+                       filename: String = "IMG_4032.jpeg",
+                       caption: String? = nil,
+                       width: UInt64? = 1600,
+                       height: UInt64? = 1200) -> Self {
+        .init(id: "mxc://example.org/sample",
+              kind: kind,
+              source: try! MediaSource.fromUrl(url: "mxc://example.org/sample"),
+              thumbnailSource: nil,
+              filename: filename,
+              caption: caption,
+              width: width,
+              height: height)
     }
 }
 #endif

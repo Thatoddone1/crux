@@ -27,8 +27,16 @@ struct MessageBubble: View {
     /// Briefly flashed after something jumped here, so the landing is legible.
     var isHighlighted: Bool = false
     var maxLines: Int? = nil
+    var mediaMaxHeight: CGFloat = 260
+    var allowsFullScreenMedia: Bool = true
 
     let defaultEmojis  = ["❤️", "👍️", "👎️", "😀", "🚡", "❓️", "🤔", "😱", "😲", "😴", "😵", "😷"]
+
+   ///of media
+    private var showsBodyText: Bool {
+        guard let media = message.media else { return true }
+        return media.caption != nil
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -39,11 +47,21 @@ struct MessageBubble: View {
                     .padding(.leading, 4)
             }
 
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(LocalizedStringKey(message.body))
-                    .lineLimit(maxLines)
-                    // dim while queued, confirmed by SDK and updated
+            if let media = message.media {
+                MediaAttachmentView(media: media,
+                                    maxHeight: mediaMaxHeight,
+                                    allowsFullScreen: allowsFullScreenMedia)
                     .opacity(message.sendState == .sending ? 0.6 : 1)
+                    .padding(.top, 4)
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                if showsBodyText {
+                    Text(LocalizedStringKey(message.body))
+                        .lineLimit(maxLines)
+                        // dim while queued, confirmed by SDK and updated
+                        .opacity(message.sendState == .sending ? 0.6 : 1)
+                }
                 Spacer(minLength: 8)
                 Text(message.date, format: .dateTime.hour().minute())
                     .font(.caption2)
@@ -179,6 +197,17 @@ struct MessageBubble: View {
 
         MessageBubble(message: .sample(sender: "PersonA", senderId: "@a:example.org", body: "A reply whose original hasn't loaded.",
             replyTo: .init(eventId: "$2", senderId: nil, sender: nil, body: nil)))
+        /// body hidden since it is filename
+        MessageBubble(message: .sample(sender: "PersonB", senderId: "@b:example.org",
+                                       body: "IMG_4032.jpeg", media: .sample()))
+
+        MessageBubble(message: .sample(sender: "PersonB", senderId: "@b:example.org",
+                                       body: "the view from the summit",
+                                       media: .sample(caption: "the view from the summit")))
+
+        MessageBubble(message: .sample(sender: "PersonA", senderId: "@a:example.org",
+                                       body: "route-notes.pdf",
+                                       media: .sample(kind: .file, filename: "route-notes.pdf")))
     }
     .padding()
 }
