@@ -337,6 +337,7 @@ final class RoomModel: Identifiable {
     func markRead() async {
         try? await room.markAsRead(receiptType: .read)
         if isMarkedUnread { try? await room.setUnreadFlag(newValue: false) }
+        await PushModel.clearDeliveredNotifications(forRoom: id)
     }
 
     func markUnread() async {

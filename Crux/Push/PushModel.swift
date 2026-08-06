@@ -19,6 +19,15 @@ final class PushModel {
     private var deviceToken: Data?
     private weak var client: Client?
 
+    
+    static func clearDeliveredNotifications(forRoom roomId: String) async {
+        let ids = await UNUserNotificationCenter.current().deliveredNotifications()
+            .filter { $0.request.content.threadIdentifier == roomId }
+            .map(\.request.identifier)
+        guard !ids.isEmpty else { return }
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ids)
+    }
+
     func requestAuthorization() async {
         _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
         await refresh()

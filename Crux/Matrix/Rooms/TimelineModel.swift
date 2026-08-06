@@ -199,11 +199,10 @@ final class TimelineModel {
     /// Marks the room read up to its latest message, clearing its unread badge.
     func markAsRead() async throws {
         try await timeline?.markAsRead(receiptType: .read)
+        await PushModel.clearDeliveredNotifications(forRoom: room.id())
     }
 
-    /// Reports a message to the homeserver. `reason` is optional. Doesn't
-    /// hide the message locally — only messages the server has accepted can
-    /// be reported.
+    /// Reports a message to the homeserver. `reason` is optional. 
     func report(_ message: Message, reason: String? = nil) async throws {
         guard case .eventId(let eventID) = message.itemID else { return }
         try await room.reportContent(eventId: eventID, reason: reason)
