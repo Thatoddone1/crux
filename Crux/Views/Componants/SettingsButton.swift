@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import MatrixRustSDK
 
 struct SettingsButton: View {
     @Environment(UserSession.self) var session

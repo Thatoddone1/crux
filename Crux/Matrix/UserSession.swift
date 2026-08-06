@@ -88,6 +88,12 @@ final class UserSession {
         avatarUrl = nil
     }
 
+    /// Directory search, excluding the signed-in user themselves.
+    func searchUsers(_ term: String, limit: UInt64) async -> [UserProfile] {
+        let results = (try? await client.searchUsers(searchTerm: term, limit: limit))?.results ?? []
+        return results.filter { $0.userId != userId }
+    }
+
     func room(id: String) throws -> Room {
         try roomListService.room(roomId: id)
     }

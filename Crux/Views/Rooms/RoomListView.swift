@@ -4,7 +4,6 @@
 //
 
 import SwiftUI
-import MatrixRustSDK
 
 enum RoomListRoute: Hashable {
     case newRoom

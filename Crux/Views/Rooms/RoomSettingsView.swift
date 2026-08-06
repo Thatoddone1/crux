@@ -8,14 +8,22 @@
 import SwiftUI
 import MatrixRustSDK
 
+
+enum RoomSettingsRoute: Hashable {
+    case editRoom
+    case privacy
+    case members
+    case invite
+    case memberDetail(id: String)
+}
+
 /// A room's preferences.
 struct RoomSettingsView: View {
     let room: RoomModel
     @Environment(UserSession.self) private var session
     @Environment(\.dismiss) private var dismiss
 
-    @State private var showMembers = false
-    @State private var showInvite = false
+    @State private var path = NavigationPath()
     @State private var showLeaveConfirmation = false
     @State private var profileTarget: ProfileTarget?
 
@@ -26,7 +34,7 @@ struct RoomSettingsView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 Section {
                     header
@@ -55,8 +63,20 @@ struct RoomSettingsView: View {
                 }
             }
             .task { await room.loadMembers() }
-            .sheet(isPresented: $showMembers) { RoomMembersView(room: room) }
-            .sheet(isPresented: $showInvite) { InviteToRoomView(room: room) }
+            .navigationDestination(for: RoomSettingsRoute.self) { route in
+                switch route {
+                case .editRoom:
+                    EditRoomView(room: room)
+                case .privacy:
+                    RoomPrivacyView(room: room)
+                case .members:
+                    RoomMembersView(room: room)
+                case .invite:
+                    InviteToRoomView(room: room)
+                case .memberDetail(let id):
+                    MemberDetailView(room: room, userId: id)
+                }
+            }
             .sheet(item: $profileTarget) { target in
                 UserProfileView(userId: target.id, session: session, room: room.room)
             }
@@ -85,14 +105,21 @@ struct RoomSettingsView: View {
             }
             LabeledContent("Members", value: room.joinedMembersCount.description)
             LabeledContent("Encrypted", value: room.isEncrypted ? "Yes" : "No")
-            Button("View members") { showMembers = true }
-            if room.canInvite() {
-                Button("Invite people") { showInvite = true }
+            NavigationLink("People", value: RoomSettingsRoute.members)
+        }
+        if room.canEditRoomDetails || room.canEditPrivacy {
+            Section("Manage") {
+                if room.canEditRoomDetails {
+                    NavigationLink("Edit Room", value: RoomSettingsRoute.editRoom)
+                }
+                if room.canEditPrivacy {
+                    NavigationLink("Privacy & Access", value: RoomSettingsRoute.privacy)
+                }
             }
         }
     }
 
-    
+
     @ViewBuilder
     private var directSection: some View {
         Section("Conversation") {
@@ -122,9 +149,7 @@ struct RoomSettingsView: View {
 
     // MARK: Notifications
 
-    /// "Default" is its own option rather than a mode: a room either follows the
-    /// account setting or overrides it, and picking `.allMessages` explicitly is
-    /// not the same as inheriting it.
+    
     private var notificationPicker: some View {
         Picker("Notify me about", selection: notificationSelection) {
             Text("Default (\(room.notificationDefaults.mode(isEncrypted: room.isEncrypted, isOneToOne: room.isOneToOne).name))")
@@ -196,105 +221,6 @@ struct RoomSettingsView: View {
                     if room.isFavorite { await room.setFavorite(false) }
                     if room.isLowPriority { await room.setLowPriority(false) }
                 }
-            }
-        }
-    }
-}
-
-/// Invites by mxid. The SDK reports a bad or unreachable id as a thrown error
-/// rather than up front, so the field stays open until one lands.
-private struct InviteToRoomView: View {
-    let room: RoomModel
-    @Environment(\.dismiss) private var dismiss
-
-    @State private var userId = ""
-    @State private var isInviting = false
-    @State private var errorMessage: String?
-    @State private var invited: [String] = []
-
-    private var isValid: Bool {
-        let trimmed = userId.trimmingCharacters(in: .whitespaces)
-        return trimmed.hasPrefix("@") && trimmed.contains(":")
-    }
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    TextField("@someone:example.org", text: $userId)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .onSubmit { if isValid { invite() } }
-                } footer: {
-                    if let errorMessage {
-                        Text(errorMessage).foregroundStyle(.red)
-                    } else {
-                        Text("Matrix IDs look like @name:server.org")
-                    }
-                }
-
-                Section {
-                    Button("Send invite") { invite() }
-                        .disabled(!isValid || isInviting)
-                }
-
-                if !invited.isEmpty {
-                    Section("Invited") {
-                        ForEach(invited, id: \.self) { Text($0) }
-                    }
-                }
-            }
-            .navigationTitle("Invite to \(room.name)")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
-        }
-    }
-
-    private func invite() {
-        let target = userId.trimmingCharacters(in: .whitespaces)
-        isInviting = true
-        errorMessage = nil
-        Task {
-            do {
-                try await room.invite(userId: target)
-                invited.append(target)
-                userId = ""
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-            isInviting = false
-        }
-    }
-}
-
-/// The member list, loaded once by `RoomModel`.
-private struct RoomMembersView: View {
-    let room: RoomModel
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            List(room.members) { member in
-                VStack(alignment: .leading) {
-                    Text(member.name)
-                    if member.displayName != nil {
-                        Text(member.id).font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-            }
-            .navigationTitle("Members")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
-            .overlay {
-                if room.members.isEmpty { ProgressView() }
             }
         }
     }

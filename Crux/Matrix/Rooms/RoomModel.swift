@@ -5,6 +5,7 @@
 
 import Foundation
 import MatrixRustSDK
+import UIKit
 
 ///All details about a specific room.
 @Observable
@@ -40,6 +41,10 @@ final class RoomModel: Identifiable {
     private let fallbackAvatarUrl: String?
     private let fallbackHeroes: [RoomHero]
 
+    ///overrides the name and topic while the room info is still updaing, right after an edit.
+    private var nameOverride: String?
+    private var topicOverride: String?
+
     private var infoHandle: TaskHandle?
     private var accountDataHandles: [RoomAccountDataEventType: TaskHandle] = [:]
 
@@ -51,7 +56,17 @@ final class RoomModel: Identifiable {
     struct Member: Identifiable {
         let id: String
         let displayName: String?
+        let avatarUrl: String?
+        let membership: MembershipState
+        let role: RoomMemberRole
         var name: String { displayName ?? id }
+
+        func with(membership: MembershipState) -> Member {
+            Member(id: id, displayName: displayName, avatarUrl: avatarUrl, membership: membership, role: role)
+        }
+        func with(role: RoomMemberRole) -> Member {
+            Member(id: id, displayName: displayName, avatarUrl: avatarUrl, membership: membership, role: role)
+        }
     }
 
     /// One line of preview text for the room list.
@@ -76,11 +91,13 @@ final class RoomModel: Identifiable {
 
     // MARK: Display values (prefer live `info`, fall back to the init snapshot)
 
-    var name: String { info?.displayName ?? fallbackName }
+    var name: String { nameOverride ?? info?.displayName ?? fallbackName }
     var avatarUrl: String? { info?.avatarUrl ?? fallbackAvatarUrl ?? heroes.first?.avatarUrl }
-    var topic: String? { info?.topic }
+    var topic: String? { topicOverride ?? info?.topic }
     var canonicalAlias: String? { info?.canonicalAlias }
     var alternativeAliases: [String] { info?.alternativeAliases ?? [] }
+    ///server of user(for aliases)
+    var serverName: String? { client.server() }
 
     /// Unread message count (all messages since your read marker).
     var unreadMessages: Int { Int(info?.numUnreadMessages ?? 0) }
@@ -167,6 +184,8 @@ final class RoomModel: Identifiable {
 
     private func received(_ new: RoomInfo) {
         info = new
+        nameOverride = nil
+        topicOverride = nil
         refreshLatestMessage()
     }
 
@@ -174,7 +193,8 @@ final class RoomModel: Identifiable {
     func loadMembers() async {
         guard members.isEmpty, let iterator = try? await room.members() else { return }
         members = (iterator.nextChunk(chunkSize: 500) ?? [])
-            .map { Member(id: $0.userId, displayName: $0.displayName) }
+            .map { Member(id: $0.userId, displayName: $0.displayName, avatarUrl: $0.avatarUrl,
+                          membership: $0.membership, role: $0.suggestedRoleForPowerLevel) }
     }
 
     
@@ -210,8 +230,7 @@ final class RoomModel: Identifiable {
         }
     }
 
-    // MARK: Permissions for the signed-in user. False until the room's info has loaded.
-
+    // MARK: Permissions for the signed-in user
     private var powerLevels: RoomPowerLevels? { info?.powerLevels }
     /// False only because we don't know yet, not because you can't — callers that
     /// would rather be optimistic while loading can check `info` first.
@@ -229,13 +248,15 @@ final class RoomModel: Identifiable {
     func canPinUnpin() -> Bool { powerLevels?.canOwnUserPinUnpin() ?? false }
     func canTriggerNotification() -> Bool { powerLevels?.canOwnUserTriggerRoomNotification() ?? false }
 
-    // MARK: Settings
+    var canEditRoomDetails: Bool {
+        canSendState(.roomName) || canSendState(.roomTopic) || canSendState(.roomAvatar)
+    }
+    var canEditPrivacy: Bool {
+        canSendState(.roomJoinRules) || canSendState(.roomHistoryVisibility) || canSendState(.roomCanonicalAlias)
+    }
+    func canEditPowerLevels() -> Bool { canSendState(.roomPowerLevels) }
 
-    // Favorite and low priority are two independent room tags, so nothing stops
-    // the server holding both — but they mean opposite things, and the room list's
-    // `.favourite` and `.lowPriority` filters would each claim the room. Turning
-    // one on clears the other, here rather than in a view, so the settings sheet
-    // and the list's context menu can't diverge on it.
+    // MARK: Settings
 
     func setFavorite(_ isFavorite: Bool) async {
         try? await room.setIsFavourite(isFavourite: isFavorite, tagOrder: nil)
@@ -249,8 +270,67 @@ final class RoomModel: Identifiable {
         try? await room.setIsFavourite(isFavourite: false, tagOrder: nil)
     }
 
-    func setTopic(_ topic: String) async throws { try await room.setTopic(topic: topic) }
-    func setName(_ name: String) async throws { try await room.setName(name: name) }
+    func setTopic(_ topic: String) async throws {
+        try await room.setTopic(topic: topic)
+        topicOverride = topic
+    }
+    func setName(_ name: String) async throws {
+        try await room.setName(name: name)
+        nameOverride = name
+    }
+
+    /// Builds the upload metadata (dimensions, size, mimetype) from the image
+    /// itself — callers only need to hand over what the user picked.
+    func setAvatar(_ image: UIImage) async throws {
+        guard let jpeg = image.jpegData(compressionQuality: 0.85) else {
+            throw RoomAvatarError.encodingFailed
+        }
+        let info = ImageInfo(height: UInt64(image.size.height), width: UInt64(image.size.width),
+                             mimetype: "image/jpeg", size: UInt64(jpeg.count),
+                             thumbnailInfo: nil, thumbnailSource: nil, blurhash: nil, isAnimated: false)
+        try await room.uploadAvatar(mimeType: "image/jpeg", data: jpeg, mediaInfo: info)
+    }
+    func removeAvatar() async throws { try await room.removeAvatar() }
+
+    // MARK: Privacy
+
+    var joinRule: JoinRule? { info?.joinRule }
+    var historyVisibility: RoomHistoryVisibility { info?.historyVisibility ?? .shared }
+
+    func updateJoinRule(_ rule: JoinRule) async throws { try await room.updateJoinRules(newRule: rule) }
+    func updateHistoryVisibility(_ visibility: RoomHistoryVisibility) async throws {
+        try await room.updateHistoryVisibility(visibility: visibility)
+    }
+
+    /// if it is in the room directory
+    func getVisibility() async throws -> RoomVisibility { try await room.getRoomVisibility() }
+    func updateVisibility(_ visibility: RoomVisibility) async throws {
+        try await room.updateRoomVisibility(visibility: visibility)
+    }
+    
+    //create a new alias
+    func createAlias(_ alias: String) async throws {
+        _ = try await room.publishRoomAliasInRoomDirectory(alias: alias)
+    }
+
+    ///update aliases (send full list since this updates all)
+    func updateAliases(canonical: String?, alternatives: [String]) async throws {
+        try await room.updateCanonicalAlias(alias: canonical, altAliases: alternatives)
+    }
+
+    // MARK: Power levels
+
+    var memberPowerLevels: [String: Int64] { powerLevels?.userPowerLevels() ?? [:] }
+    /// What a member is at if they're not in `memberPowerLevels`.
+    var defaultPowerLevel: Int64 { powerLevels?.values().usersDefault ?? 0 }
+    func powerLevel(of userId: String) -> Int64 { memberPowerLevels[userId] ?? defaultPowerLevel }
+
+    func setPowerLevel(of userId: String, to level: Int64) async throws {
+        try await room.updatePowerLevelsForUsers(updates: [UserPowerLevelUpdate(userId: userId, powerLevel: level)])
+        guard let index = members.firstIndex(where: { $0.id == userId }),
+              let role = try? suggestedRoleForPowerLevel(powerLevel: .value(value: level)) else { return }
+        members[index] = members[index].with(role: role)
+    }
 
     /// Marks the room read, clearing both its unread receipts and any manual
     /// unread flag.
@@ -317,6 +397,34 @@ final class RoomModel: Identifiable {
     ///leave room or reject invite
     func leave() async throws { try await room.leave() }
     func invite(userId: String) async throws { try await room.inviteUserById(userId: userId) }
+
+    /// Removes someone from the room; they can rejoin if invited again.
+    func kick(_ userId: String, reason: String? = nil) async throws {
+        try await room.kickUser(userId: userId, reason: reason)
+        members.removeAll { $0.id == userId }
+    }
+
+    /// Removes someone and blocks them from rejoining until unbanned.
+    func ban(_ userId: String, reason: String? = nil) async throws {
+        try await room.banUser(userId: userId, reason: reason)
+        setMembership(of: userId, to: .ban)
+    }
+
+    func unban(_ userId: String, reason: String? = nil) async throws {
+        try await room.unbanUser(userId: userId, reason: reason)
+        members.removeAll { $0.id == userId }
+    }
+
+    ///update the current member list on change (since the SDK doesn't send updates in real time)
+    private func setMembership(of userId: String, to membership: MembershipState) {
+        guard let index = members.firstIndex(where: { $0.id == userId }) else { return }
+        members[index] = members[index].with(membership: membership)
+    }
+}
+
+enum RoomAvatarError: LocalizedError {
+    case encodingFailed
+    var errorDescription: String? { "Couldn't process that image." }
 }
 
 /// The account-wide notification defaults, which rooms without their own setting

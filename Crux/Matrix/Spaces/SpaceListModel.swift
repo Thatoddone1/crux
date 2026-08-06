@@ -114,6 +114,11 @@ final class SpaceListModel {
         }
     }
 
+    ///which spaces room belongs to
+    func parentSpaces(of roomId: String) async -> [SpaceRoom] {
+        (try? await service.joinedParentsOfChild(childId: roomId)) ?? []
+    }
+
     func orphaned(from summaries: [RoomModel]) async -> [RoomModel] {
         var result: [RoomModel] = []
         for summary in summaries {

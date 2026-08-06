@@ -59,11 +59,9 @@ final class SearchModel {
             defer { isSearchingUsers = false }
             try? await Task.sleep(for: .milliseconds(300))
             guard !Task.isCancelled else { return }
-            let users = (try? await session.client.searchUsers(searchTerm: trimmed, limit: 8))?.results ?? []
+            let users = await session.searchUsers(trimmed, limit: 8)
             guard !Task.isCancelled else { return }
-            let extra = users
-                .filter { $0.userId != session.userId }
-                .map(personOrExistingDM)
+            let extra = users.map(personOrExistingDM)
             results = Self.merging(extra, into: local)
         }
     }
