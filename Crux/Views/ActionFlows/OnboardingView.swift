@@ -260,7 +260,7 @@ private struct MatrixNetworkPage: View {
                            detail: "Only you and the people you're talking to can read your messages.")
                 BenefitRow(icon: "arrow.left.arrow.right", tint: .orange,
                            title: "Everyone can reach everyone",
-                           detail: "Pick any server and still message anyone, anywhere on Matrix, using any  Matrix app.")
+                           detail: "Pick any server and still message anyone, anywhere on Matrix, using any Matrix app.")
             }
         }
     }
