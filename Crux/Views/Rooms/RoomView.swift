@@ -62,6 +62,7 @@ struct RoomView: View {
                     if (details.canSendMessage()) {
                         Composer(
                             onSend: send,
+                            members: details.members,
                             errorMessage: errorMessage,
                             replyingTo: replyTarget,
                             onReply: sendReply,
@@ -103,6 +104,7 @@ struct RoomView: View {
             }
         }
         .openRoom(session, roomId: roomId, into: $details)
+        .task(id: details?.id) { await details?.loadMembers() }
         // Suppresses notification banners for the room already on screen.
         .onAppear { router.visibleRoomId = roomId }
         .onDisappear { if router.visibleRoomId == roomId { router.visibleRoomId = nil } }
@@ -255,21 +257,21 @@ struct RoomView: View {
         }
     }
     
-    private func send(_ draft: String) {
+    private func send(_ draft: String, mentioning userIds: [String] = []) {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, let details else { return }
         errorMessage = nil
-        
+
         Task {
             do {
-                try await details.timeline.send(text)
+                try await details.timeline.send(text, mentioning: userIds)
             } catch {
                 errorMessage = error.localizedDescription
             }
         }
     }
 
-    private func sendReply(_ draft: String, to message: TimelineModel.Message) {
+    private func sendReply(_ draft: String, to message: TimelineModel.Message, mentioning userIds: [String] = []) {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, let details else { return }
         errorMessage = nil
@@ -277,12 +279,10 @@ struct RoomView: View {
 
         Task {
             do {
-                try await details.timeline.reply(text, to: message)
+                try await details.timeline.reply(text, to: message, mentioning: userIds)
             } catch TimelineError.notYetSent {
-                // The target slipped out from under us — send the text plainly
-                // rather than throwing away what they typed.
                 errorMessage = "Sent without a reply — \(message.sender)'s message hadn't landed yet."
-                try? await details.timeline.send(text)
+                try? await details.timeline.send(text, mentioning: userIds)
             } catch {
                 errorMessage = error.localizedDescription
             }

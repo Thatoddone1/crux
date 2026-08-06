@@ -51,9 +51,9 @@ struct MountainCard: View {
             .contentShape(.rect)
             .onTapGesture { composerFocus.wrappedValue = false }
             if canSend {
-                Composer(onSend: onSend,
+                Composer(onSend: { draft, _ in onSend(draft) },
                          replyingTo: replyTarget,
-                         onReply: { draft, message in
+                         onReply: { draft, message, _ in
                              replyTarget = nil
                              onReply?(draft, message)
                          },

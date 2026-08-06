@@ -161,20 +161,23 @@ final class TimelineModel {
 
     // MARK: - Actions
 
-    /// Sends a Markdown message. This returns as soon as the message is queued:
-    /// it appears immediately as a `.sending` entry, and if the server rejects
-    /// it (e.g. no permission) it comes back as `.failed` through the listener —
-    /// *not* as an error thrown here.
-    func send(_ markdown: String) async throws {
-        _ = try await timeline?.send(msg: messageEventContentFromMarkdown(md: markdown))
+    func send(_ markdown: String, mentioning userIds: [String] = []) async throws {
+        let content = attachMentions(to: messageEventContentFromMarkdown(md: markdown), userIds)
+        _ = try await timeline?.send(msg: content)
     }
 
     /// Sends a Markdown message as a reply to `message`.
-    func reply(_ markdown: String, to message: Message) async throws {
+    func reply(_ markdown: String, to message: Message, mentioning userIds: [String] = []) async throws {
         // You can only reply to a message the server has already accepted.
         guard case .eventId(let eventID) = message.itemID else { throw TimelineError.notYetSent }
-        try await timeline?.sendReply(msg: messageEventContentFromMarkdown(md: markdown),
-                                      eventId: eventID)
+        let content = attachMentions(to: messageEventContentFromMarkdown(md: markdown), userIds)
+        try await timeline?.sendReply(msg: content, eventId: eventID)
+    }
+
+    private func attachMentions(to content: RoomMessageEventContentWithoutRelation,
+                                 _ userIds: [String]) -> RoomMessageEventContentWithoutRelation {
+        guard !userIds.isEmpty else { return content }
+        return content.withMentions(mentions: Mentions(userIds: userIds, room: false))
     }
 
     /// Replaces the text of one of your own messages.
